@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "byterover-mcp"
+  ],
+  "enableAllProjectMcpServers": true
+}

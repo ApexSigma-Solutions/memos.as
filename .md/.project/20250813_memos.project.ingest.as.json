@@ -1,0 +1,75 @@
+{
+  "project_code": "memos.as",
+  "parent_ecosystem": "devenviro.as",
+  "last_updated": "2025-08-13",
+  "project_summary": {
+    "vision": "To be the central cognitive core for the DevEnviro 'Society of Agents,' transforming them from stateless task-executors into resourceful, learning problem-solvers.",
+    "mission": "Provide a unified, intelligent service that endows agents with persistent memory and an active awareness of their available tools, abstracting the complexity of the underlying multi-tiered memory engine.",
+    "problem_statement": "Agents suffer from 'Amnesia' (statelessness) and 'Tool Blindness' (unaware of available capabilities), creating a cognitive bottleneck that limits the ecosystem's ability to learn and solve complex problems.",
+    "core_philosophy": "Knowledge is a tool. Memory is the key to using it. True intelligence comes from recalling past experiences, understanding present context, and knowing which tool to use for the future."
+  },
+  "brand_identity": {
+    "role": "The Cognitive Core / The Brain",
+    "voice": "Authoritative, Intelligent, Efficient",
+    "tone": "Helpful, Clear, Unobtrusive",
+    "visual_metaphors": ["Brain/Neural Networks", "Library/Archive", "Mission Control Hub"]
+  },
+  "architecture": {
+    "paradigm": "Standalone, decoupled FastAPI microservice communicating via a synchronous RESTful API.",
+    "primary_functions": [
+      "Memory Management: A unified API to store and query experiences.",
+      "Tool Discovery: A dynamic registry for all available ecosystem tools.",
+      "Knowledge Ingestion: A target for the InGest-LLM pipeline to continuously build the knowledge base."
+    ],
+    "data_flow_example": "Orchestrator -> Cortex Agent -> memOS.as (Query) -> Qdrant/Postgres -> Cortex Agent -> LM Studio -> tools.as -> Cortex Agent -> memOS.as (Store) -> Orchestrator",
+    "api_endpoints": [
+      {"method": "POST", "path": "/tools/register", "description": "Registers a new tool in the PostgreSQL registry."},
+      {"method": "POST", "path": "/memory/store", "description": "Stores a piece of content as an episodic memory, creating a vector in Qdrant and a log in PostgreSQL."},
+      {"method": "POST", "path": "/memory/query", "description": "Performs a semantic search for relevant memories and tools based on a query."}
+    ]
+  },
+  "technology_stack": {
+    "core_framework": ["Python 3.11", "FastAPI"],
+    "database_integrations": [
+      {"name": "Redis", "purpose": "Tier 1: Working Memory & LLM Cache"},
+      {"name": "Qdrant", "purpose": "Tier 2: Episodic Memory (Vector Search)"},
+      {"name": "PostgreSQL", "purpose": "Tier 2: Procedural Memory & Tool Registry"}
+    ],
+    "ai_integration": {
+      "runner": "LM Studio",
+      "generation_model": "mistralai/devstral-small-2507",
+      "embedding_model": "lmstudio-community/nomic-embed-code-GGUF",
+      "sdk": "lmstudio-python"
+    },
+    "containerization": ["Docker", "Docker Compose"]
+  },
+  "core_concepts": {
+    "ingest_llm": {
+      "description": "The 'sensory system' of memOS.as. An active learning process operated by the Cortex Agent to consume, parse, and understand new information from codebases, websites, etc., and store it as memories.",
+      "operator": "Cortex Agent",
+      "script": "ingest_indexer.py"
+    },
+    "agent_loadouts": {
+      "description": "The practical application of memOS.as knowledge. A YAML-defined script that equips an agent with a curated set of tools, memories, and instructions for a specialized task, making memOS.as a 'quartermaster of knowledge'."
+    }
+  },
+  "project_plan": {
+    "current_phase": "Milestone 1: Foundational Setup & Core Service.",
+    "next_phase": "Milestone 2: Ingestion & Ecosystem Integration.",
+    "roadmap": [
+      {"phase": 1, "theme": "Episodic Memory & Tool Registry", "status": "In Progress"},
+      {"phase": 1.5, "theme": "Working Memory & LLM Cache", "status": "Upcoming"},
+      {"phase": 2, "theme": "Automated Knowledge Ingestion (InGest-LLM)", "status": "Future"},
+      {"phase": 3, "theme": "Semantic Memory Integration (Neo4j)", "status": "Future"}
+    ],
+    "next_major_task": "Complete the implementation of core API endpoints for tool and memory management, then begin building the InGest-LLM pipeline components."
+  },
+  "security_policy": {
+    "parent_policy": "devenviro.as/security.project.md",
+    "considerations": [
+      "API endpoints are for internal communication only and must be authenticated in production.",
+      "Data at rest (Qdrant, PostgreSQL) may contain sensitive information and access must be strictly controlled.",
+      "All local models downloaded via LM Studio must be vetted from trusted publishers to mitigate supply chain risks."
+    ]
+  }
+}

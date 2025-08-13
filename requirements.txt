@@ -1,0 +1,15 @@
+# Core Web Framework
+fastapi[all]
+
+# Environment & Settings Management
+pydantic-settings
+
+# Database & ORM
+sqlalchemy
+psycopg2-binary
+
+# Vector Database Client
+qdrant-client
+
+# AI & Embeddings
+google-generativeai
