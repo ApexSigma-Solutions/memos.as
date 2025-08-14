@@ -8,6 +8,7 @@ from .services.postgres_client import PostgresClient, get_postgres_client
 from .services.qdrant_client import QdrantMemoryClient, get_qdrant_client
 from .services.redis_client import get_redis_client
 from .services.neo4j_client import Neo4jClient, get_neo4j_client
+from .services.observability import ObservabilityService, get_observability, trace_async
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -25,6 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize observability
+obs = get_observability()
+obs.instrument_fastapi(app)
+obs.instrument_database_clients()
+
 
 @app.get("/")
 async def root():
@@ -37,35 +43,58 @@ async def root():
 
 
 @app.get("/health")
-async def health_check():
-    """Detailed health check with service status"""
+async def health_check(observability: ObservabilityService = Depends(get_observability)):
+    """Detailed health check with service status and observability metrics"""
     try:
         # Check PostgreSQL connection
         get_postgres_client()
         postgres_status = "connected"
+        observability.active_connections.labels(database="postgresql").set(1)
 
         # Check Qdrant connection
         qdrant_client = get_qdrant_client()
         qdrant_info = qdrant_client.get_collection_info()
         qdrant_status = "connected" if qdrant_info else "disconnected"
+        observability.active_connections.labels(database="qdrant").set(1 if qdrant_info else 0)
 
         # Check Redis connection
         get_redis_client()
         redis_status = "connected"  # Basic check, can be enhanced
+        observability.active_connections.labels(database="redis").set(1)
 
-        return {
-            "status": "healthy",
+        # Log health check
+        observability.log_structured(
+            "info", 
+            "Health check performed",
+            postgres_status=postgres_status,
+            qdrant_status=qdrant_status,
+            redis_status=redis_status
+        )
+
+        health_data = observability.health_check()
+        health_data.update({
             "services": {
                 "postgres": postgres_status,
                 "qdrant": qdrant_status,
                 "redis": redis_status,
             },
             "qdrant_collection": qdrant_info,
-        }
+        })
+        
+        return health_data
+
     except Exception as e:
+        observability.log_structured("error", "Health check failed", error=str(e))
         raise HTTPException(
             status_code=503, detail=f"Service health check failed: {str(e)}"
         )
+
+
+@app.get("/metrics")
+async def get_metrics(observability: ObservabilityService = Depends(get_observability)):
+    """Prometheus metrics endpoint for DevEnviro monitoring stack."""
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(observability.get_metrics(), media_type="text/plain")
 
 
 # Tool Management Endpoints
@@ -151,11 +180,13 @@ async def search_tools(
 
 # Memory Management Endpoints
 @app.post("/memory/store")
+@trace_async("memory.store")
 async def store_memory(
     store_request: StoreRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
     qdrant_client: QdrantMemoryClient = Depends(get_qdrant_client),
     neo4j_client: Neo4jClient = Depends(get_neo4j_client),
+    observability: ObservabilityService = Depends(get_observability),
 ):
     """
     Store a new memory with embeddings and knowledge graph updates.
@@ -168,31 +199,45 @@ async def store_memory(
     5. Return the PostgreSQL ID and knowledge graph information
     """
     try:
+        import time
+        start_time = time.time()
+        
         # Step 1: Generate an embedding for the content
         embedding = qdrant_client.generate_placeholder_embedding(store_request.content)
+        observability.record_memory_operation("embedding_generation", "success")
 
         # Step 2: Store the full content/metadata in PostgreSQL to get a unique ID
+        postgres_start = time.time()
         memory_id = postgres_client.store_memory(
             content=store_request.content, metadata=store_request.metadata
         )
-
+        postgres_duration = time.time() - postgres_start
+        
         if memory_id is None:
+            observability.record_memory_operation("postgres_store", "failed", "tier2", postgres_duration)
             raise HTTPException(
                 status_code=500, detail="Failed to store memory in PostgreSQL"
             )
+        
+        observability.record_memory_operation("postgres_store", "success", "tier2", postgres_duration)
 
         # Step 3: Store the vector embedding and the PostgreSQL ID in Qdrant
+        qdrant_start = time.time()
         point_id = qdrant_client.store_embedding(
             embedding=embedding, memory_id=memory_id, metadata=store_request.metadata
         )
+        qdrant_duration = time.time() - qdrant_start
 
         if point_id is None:
+            observability.record_memory_operation("qdrant_store", "failed", "tier2", qdrant_duration)
             # Rollback: delete the PostgreSQL record if Qdrant storage fails
             # Note: In a production system, this should be handled with
             # proper transactions
             raise HTTPException(
                 status_code=500, detail="Failed to store embedding in Qdrant"
             )
+        
+        observability.record_memory_operation("qdrant_store", "success", "tier2", qdrant_duration)
 
         # Update PostgreSQL record with the Qdrant point ID for linking
         postgres_client.update_memory_embedding_id(memory_id, point_id)
@@ -202,8 +247,11 @@ async def store_memory(
         neo4j_info = {}
         try:
             if neo4j_client.driver:  # Only if Neo4j is available
+                neo4j_start = time.time()
+                
                 # Extract concepts from content
                 concepts = neo4j_client.extract_concepts_from_content(store_request.content)
+                observability.record_concepts_extracted(len(concepts))
                 
                 # Create memory node in Neo4j knowledge graph
                 memory_node = neo4j_client.create_memory_node(
@@ -212,14 +260,36 @@ async def store_memory(
                     concepts=concepts
                 )
                 
+                neo4j_duration = time.time() - neo4j_start
+                observability.record_memory_operation("neo4j_store", "success", "tier3", neo4j_duration)
+                observability.record_knowledge_graph_operation("create_memory_node", "Memory")
+                for concept in concepts:
+                    observability.record_knowledge_graph_operation("create_concept_node", "Concept")
+                
                 neo4j_info = {
                     "concepts_extracted": len(concepts),
                     "concepts": concepts,
                     "memory_node_created": True
                 }
+                
+                # Log successful knowledge graph update
+                observability.log_structured(
+                    "info",
+                    "Knowledge graph updated",
+                    memory_id=memory_id,
+                    concepts_count=len(concepts),
+                    duration=neo4j_duration
+                )
+                
         except Exception as e:
             # Neo4j integration failure shouldn't break the main storage flow
-            print(f"Neo4j integration warning: {e}")
+            observability.record_memory_operation("neo4j_store", "failed", "tier3")
+            observability.log_structured(
+                "warning", 
+                "Neo4j integration failed", 
+                memory_id=memory_id,
+                error=str(e)
+            )
             neo4j_info = {
                 "concepts_extracted": 0,
                 "concepts": [],

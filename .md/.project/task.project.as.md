@@ -10,7 +10,7 @@ This file tracks the specific, actionable tasks for the current development cycl
 *   [x] **Dependency:** Add neo4j Python driver to requirements.txt.
 *   [x] **Service:** Create app/services/neo4j_client.py to encapsulate connection logic and Cypher queries.
 *   [x] **Data Model:** Define the core graph schema (Nodes: Memory, Tool, Concept, Agent; Relationships: RELATED_TO, USES, MENTIONS, CREATED_BY).
-*   [ ] **Integration:** Modify /memory/store endpoint to extract concepts and update the Neo4j graph after storing data in PostgreSQL/Qdrant.
+*   [x] **Integration:** Modify /memory/store endpoint to extract concepts and update the Neo4j graph after storing data in PostgreSQL/Qdrant.
 
 ### Develop API Endpoints for Graph Queries
 
