@@ -1,0 +1,67 @@
+{
+  "instruction": "This knowledge graph explains the ConPort Agent Memory Protocol, a mandatory set of rules for AI agents. The graph details the operational logic for session initialization, context management, proactive knowledge capture, and inter-agent collaboration, ensuring consistent and structured interaction with a shared project memory system.",
+  "graph_metadata": {
+    "creation_date": "2025-08-14",
+    "source_description": "A structured summary of the ConPort Agent Memory Protocol, outlining rules for AI agent interaction with the ConPort shared memory system."
+  },
+  "summary": {
+    "primary_intent": "To establish a mandatory, structured protocol for AI agents interacting with the ConPort memory system, ensuring consistent state management, reliable knowledge sharing, and formalized collaboration.",
+    "key_outcomes": [
+      "Standardizes session start-up by requiring agents to check for and load existing project context from a `context.db` file.",
+      "Enforces a 'retrieve first, store last' principle to maintain memory consistency.",
+      "Mandates explicit user confirmation for all write, update, or delete operations, ensuring user control over the knowledge base.",
+      "Implements a proactive knowledge management system where agents identify and suggest logging for decisions, progress, and new relationships.",
+      "Defines a clear 'Society of Agents' collaboration model with distinct personas (@Claude, @Gemini, @Qodo) and a mandatory review process for all artifacts."
+    ],
+    "unresolved_questions": [
+      "How should the system handle context merging or conflicts if multiple agents attempt to update the same context simultaneously?"
+    ]
+  },
+  "process_flow (as entities)": [
+    {
+      "step": 1,
+      "id": "session_initialization",
+      "type": "Protocol",
+      "label": "Session Initialization Protocol",
+      "description": "The mandatory first action an agent must take. It involves identifying the workspace, checking for an existing `context.db`, and branching the execution flow to either load existing context, set up a new context, or operate without memory."
+    },
+    {
+      "step": 2,
+      "id": "dynamic_context_retrieval",
+      "type": "Strategy",
+      "label": "Dynamic Context Retrieval (RAG)",
+      "description": "A Retrieval Augmented Generation strategy to build a relevant context set. The agent analyzes the user query, uses a prioritized set of search tools (FTS, semantic search), and synthesizes the retrieved information to enhance its response."
+    },
+    {
+      "step": 3,
+      "id": "proactive_knowledge_management",
+      "type": "Behavior",
+      "label": "Proactive Knowledge Management",
+      "description": "A required agent behavior to proactively identify opportunities to log new information (decisions, progress) and create links between knowledge items. All logging and linking actions require explicit user confirmation."
+    },
+    {
+      "step": 4,
+      "id": "agent_collaboration",
+      "type": "Framework",
+      "label": "Society of Agents Collaboration",
+      "description": "A role-based collaboration model featuring specialized agents: @Claude (Architect), @Gemini (Implementer), and @Qodo (QA). It includes a Mandatory Agent Review (MAR) protocol, requiring artifacts to be reviewed and approved before integration."
+    },
+    {
+      "step": 5,
+      "id": "tool_interaction",
+      "type": "Action",
+      "label": "ConPort Tool Execution",
+      "description": "The execution of specific commands to interact with the ConPort memory, such as `update_product_context`, `log_decision`, and `link_conport_items`. Usage is governed by the protocols for retrieval, storage, and user confirmation."
+    }
+  ],
+  "process_logic (as relationships)": [
+    {
+      "instruction": "This describes the operational flow between the core components of the ConPort protocol.",
+      "relationship_1": {"source": "session_initialization", "target": "dynamic_context_retrieval", "label": "enables"},
+      "relationship_2": {"source": "session_initialization", "target": "proactive_knowledge_management", "label": "enables"},
+      "relationship_3": {"source": "dynamic_context_retrieval", "target": "agent_collaboration", "label": "informs"},
+      "relationship_4": {"source": "proactive_knowledge_management", "target": "tool_interaction", "label": "triggers"},
+      "relationship_5": {"source": "agent_collaboration", "target": "tool_interaction", "label": "governs"}
+    }
+  ]
+}

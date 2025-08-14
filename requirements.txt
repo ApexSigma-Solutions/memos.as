@@ -7,9 +7,14 @@ pydantic-settings
 # Database & ORM
 sqlalchemy
 psycopg2-binary
+redis
 
 # Vector Database Client
 qdrant-client
 
 # AI & Embeddings
 google-generativeai
+
+# Testing
+pytest
+httpx
