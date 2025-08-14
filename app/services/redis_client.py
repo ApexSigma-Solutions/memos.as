@@ -1,5 +1,7 @@
-import redis
 import os
+
+import redis
+
 
 class RedisClient:
     def __init__(self):
@@ -20,8 +22,10 @@ class RedisClient:
         value = self.client.get(key)
         return value.decode("utf-8") if value else None
 
+
 # Global Redis client instance
 redis_client = RedisClient()
+
 
 def get_redis_client() -> RedisClient:
     return redis_client

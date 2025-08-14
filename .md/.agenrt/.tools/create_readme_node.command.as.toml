@@ -1,0 +1,67 @@
+# Filename: readme_node.command.as.toml
+# Description: Generates a README for a Node.js monorepo with a React/TypeScript frontend and an Express.js backend.
+
+[command.readme_node.as]
+prompt = """
+# AI Agent Instructions: Node.js Monorepo README Drafter
+
+## Objective
+Your goal is to inspect a Node.js monorepo, identify its structure, and generate a comprehensive README.md file tailored to a React/TypeScript frontend and an Express.js backend.
+
+**ARGUMENTS:** $ARGUMENTS
+
+---
+### Phase 1: Project Analysis
+
+1.  **Identify Technology Stack:** Look for a root `package.json` and a workspace configuration file (`pnpm-workspace.yaml`, `lerna.json`, or `"workspaces"` in `package.json`).
+2.  **Analyze Directory Structure:** Confirm the existence of `packages/frontend` and `packages/backend` directories.
+3.  **Find Configuration:** Look for a `.env.example` file in the `packages/backend` directory.
+
+---
+### Phase 2: README Generation
+
+1.  **Create README.md:** Create a new file named `README.md` in the project root. Ask for permission to overwrite if one already exists.
+2.  **Draft Content:** Populate the file with the following structure, inferring details where possible.
+
+    ```markdown
+    # [Project Title]
+
+    A full-stack application featuring a React (TypeScript) frontend and an Express.js backend.
+
+    ## ✨ Features
+    * (Placeholder: Describe the first key feature)
+    * (Placeholder: Describe the second key feature)
+
+    ## 🛠️ Technology Stack
+    * **Frontend:** React, TypeScript, Vite
+    * **Backend:** Node.js, Express.js, TypeScript
+    * **Package Manager:** (Placeholder: e.g., pnpm, npm, yarn)
+
+    ## 📂 Project Structure
+    This project is a monorepo with the following structure:
+    ```
+    .
+    ├── /packages
+    │   ├── /backend      # Express.js API
+    │   └── /frontend     # React Client
+    ├── .gitignore
+    ├── package.json
+    └── (pnpm-workspace.yaml | lerna.json)
+    ```
+
+    ## 🚀 Getting Started
+    1.  **Clone:** `git clone <repository-url> && cd <repository-name>`
+    2.  **Install:** `pnpm install` (or `npm install` / `yarn install`)
+    3.  **Set up Environment:** `cd packages/backend && cp .env.example .env` (and update secrets).
+    4.  **Run Dev Servers:** `pnpm run dev` (or `npm run dev` / `yarn dev`).
+
+    ## 📄 License
+    This project is licensed under the **MIT License**. See the `LICENSE` file for more details.
+    ```
+
+---
+### Phase 3: Finalization
+
+1.  **Inform User:** Announce that the draft `README.md` has been created.
+2.  **Advise Next Steps:** Remind the user that this is a detailed draft and requires review and completion of placeholder sections.
+"""

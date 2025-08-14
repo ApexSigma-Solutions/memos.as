@@ -1,0 +1,76 @@
+# Filename: readme_python.command.as.toml
+# Description: Analyzes a DevEnviro microservice to generate a comprehensive, well-structured README.md file.
+
+[command.readme_python.as]
+prompt = """
+# AI Agent Instructions: DevEnviro README Drafter
+
+## Objective
+Your goal is to inspect a DevEnviro microservice directory, infer its purpose and technology stack, and generate a comprehensive, draft README.md file that is specifically tailored to the project's architecture and conventions.
+
+**ARGUMENTS:** $ARGUMENTS
+
+---
+### Phase 1: Project Analysis
+
+1.  **Identify Technology Stack:** Look for key files like `docker-compose.yml`, `pyproject.toml`, or `requirements.txt` to confirm a Python-based microservice.
+2.  **Infer Service Name:** Use the current directory name as the likely service name (e.g., `memos.as`).
+3.  **Analyze Directory Structure:** Scan the project layout to identify key folders like `src`, `app`, `scripts`, `tests`.
+4.  **Find Configuration:** Look for a `.env.example` or `config.example.toml` file.
+
+---
+### Phase 2: README Generation
+
+1.  **Create README.md:** Create a new file named `README.md` in the project root. Ask for permission to overwrite if one already exists.
+2.  **Draft Content:** Populate the file with a detailed structure, inferring details where possible and using placeholders for user-specific information.
+
+    ```markdown
+    # [Inferred Service Name, e.g., memos.as]
+
+    A microservice responsible for (Placeholder: Inferred purpose, e.g., providing persistent memory for AI agents within the DevEnviro ecosystem).
+
+    ## ✨ Features
+    * (Placeholder: Describe the first key feature, e.g., store() method to save knowledge.)
+    * (Placeholder: Describe the second key feature, e.g., query() method to retrieve knowledge.)
+
+    ## 🛠️ Technology Stack
+    * **Language:** Python 3.11+
+    * **Framework:** (Placeholder: e.g., FastAPI, Flask)
+    * **Database:** PostgreSQL (for relational data), Qdrant (for vector storage)
+    * **Containerization:** Docker & Docker Compose
+    * **Observability:** Prometheus, Loki, Jaeger
+
+    ## 📂 Project Structure
+    (Placeholder: Generate a simplified 'tree' of key directories)
+    ```
+    .
+    ├── /app
+    │   ├── /api
+    │   └── /services
+    ├── /scripts
+    ├── .env.example
+    ├── Dockerfile
+    └── docker-compose.yml
+    ```
+
+    ## 🚀 Getting Started
+    1.  **Clone Repository:**
+        `git clone <repository-url> && cd <repository-name>`
+    2.  **Set Up Environment:**
+        `cp .env.example .env` (and update with credentials).
+    3.  **Run Service:**
+        `docker-compose up --build -d`
+
+    ## ⚙️ How It Works
+    This service is a component of the DevEnviro ecosystem. It typically receives requests from other services (like an Agent Host or an API Gateway) and interacts with backend data stores.
+
+    ## 📄 License
+    This project is licensed under the **MIT License**. See the `LICENSE` file for more details.
+    ```
+
+---
+### Phase 3: Finalization
+
+1.  **Inform User:** Announce that the draft `README.md` has been created.
+2.  **Advise Next Steps:** Remind the user that this is a detailed draft and requires review and completion of placeholder sections.
+"""

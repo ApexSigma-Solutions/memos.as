@@ -18,3 +18,16 @@ google-generativeai
 # Testing
 pytest
 httpx
+
+# Code Quality
+flake8
+black
+isort
+
+# Documentation
+mkdocs
+mkdocs-material
+mkdocstrings[python]
+
+# Graph Database
+neo4j
