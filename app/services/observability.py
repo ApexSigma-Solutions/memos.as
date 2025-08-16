@@ -6,6 +6,7 @@ Integrates with:
 - Loki (structured logging)
 - Jaeger (distributed tracing)
 - Grafana (dashboards)
+- Langfuse (LLM tracing)
 """
 
 import os
@@ -23,6 +24,8 @@ from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
+from langfuse import Langfuse
+
 
 
 class ObservabilityService:
@@ -30,7 +33,7 @@ class ObservabilityService:
     Centralized observability service for memOS.as.
 
     Provides metrics, logging, and tracing integration with the DevEnviro
-    monitoring stack (Prometheus, Loki, Jaeger, Grafana).
+    monitoring stack (Prometheus, Loki, Jaeger, Grafana, Langfuse).
     """
 
     def __init__(self):
@@ -41,6 +44,7 @@ class ObservabilityService:
         self._setup_logging()
         self._setup_metrics()
         self._setup_tracing()
+
 
         self.logger = structlog.get_logger()
         self.tracer = trace.get_tracer(self.service_name)
@@ -142,6 +146,14 @@ class ObservabilityService:
         # Add span processor
         span_processor = BatchSpanProcessor(jaeger_exporter)
         trace.get_tracer_provider().add_span_processor(span_processor)
+
+    def _setup_langfuse(self):
+        """Configure Langfuse client."""
+        self.langfuse = Langfuse(
+            public_key=os.environ.get("LANGFUSE_API_KEY_PUBLIC"),
+            secret_key=os.environ.get("LANGFUSE_API_KEY_SECRET"),
+            host="https://cloud.langfuse.com"
+        )
 
     def instrument_fastapi(self, app):
         """Instrument FastAPI application with observability."""
@@ -271,6 +283,22 @@ class ObservabilityService:
                 "loki": True
             }
         }
+
+    def trace_with_langfuse(self, operation_name: str = None, **kwargs):
+        """Decorator for tracing with Langfuse."""
+        def decorator(func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                trace = self.langfuse.trace(name=operation_name or func.__name__, **kwargs)
+                try:
+                    result = func(*args, **kwargs)
+                    trace.update(output=result)
+                    return result
+                except Exception as e:
+                    trace.update(output={"error": str(e)}, level="ERROR")
+                    raise
+            return wrapper
+        return decorator
 
 
 # Global observability instance

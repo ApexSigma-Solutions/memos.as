@@ -38,7 +38,7 @@ def test_tool_registration():
     if response.status_code == 200:
         data = response.json()
         print(f"Tool registered with ID: {data.get('tool_id')}")
-        assert data["success"] == True
+        assert data["success"] is True
         assert data["tool_id"] is not None
         return data["tool_id"]
     else:
@@ -52,7 +52,7 @@ def test_memory_store():
     if response.status_code == 200:
         data = response.json()
         print(f"Memory stored with ID: {data.get('memory_id')}")
-        assert data["success"] == True
+        assert data["success"] is True
         assert data["memory_id"] is not None
         return data["memory_id"]
     else:
@@ -62,7 +62,7 @@ def test_memory_store():
 def test_memory_query():
     """Test memory query endpoint"""
     # First store a memory
-    memory_id = test_memory_store()
+    test_memory_store()
 
     # Then query for it
     response = client.post("/memory/query", json=test_query)

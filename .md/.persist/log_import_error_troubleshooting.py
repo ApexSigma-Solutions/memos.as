@@ -2,11 +2,11 @@ import httpx
 
 url = "http://localhost:8090/memory/store"
 payload = {
-    "content": "Created Pydantic model `GraphQueryRequest` in `app/models.py` for structured graph query requests.",
+    "content": "Troubleshooting persistent ImportError: 'trace_with_langfuse' not found. Attempting to resolve by adding __init__.py files to 'app' and 'app/services' directories to ensure proper package recognition.",
     "metadata": {
-        "task": "Develop API Endpoints for Graph Queries - Schema",
+        "task": "Troubleshoot ModuleNotFoundError",
         "status": "IN_PROGRESS",
-        "tags": ["graph_api", "pydantic", "schema"]
+        "tags": ["troubleshooting", "python", "docker", "imports"]
     }
 }
 

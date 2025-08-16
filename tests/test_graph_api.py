@@ -1,6 +1,10 @@
 import httpx
 import pytest
+import os
 from app.services.neo4j_client import Neo4jClient
+
+API_HOST = os.environ.get("API_HOST", "localhost")
+BASE_URL = f"http://{API_HOST}:8090"
 
 @pytest.fixture(scope="module")
 def neo4j_client():
@@ -20,7 +24,7 @@ def test_graph_query_endpoint(neo4j_client):
     neo4j_client.create_concept_node(concept_name)
 
     # Query for the created node
-    url = "http://localhost:8091/graph/query"
+    url = f"{BASE_URL}/graph/query"
     payload = {
         "node_label": "Concept",
         "filters": {"name": concept_name}

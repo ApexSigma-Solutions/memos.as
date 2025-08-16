@@ -1,4 +1,5 @@
 import os
+import random
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,6 +34,7 @@ obs.instrument_database_clients()
 
 
 @app.get("/")
+@trace_async("root")
 async def root():
     """Health check endpoint"""
     return {
@@ -43,6 +45,7 @@ async def root():
 
 
 @app.get("/health")
+@trace_async("health")
 async def health_check(observability: ObservabilityService = Depends(get_observability)):
     """Detailed health check with service status and observability metrics"""
     try:
@@ -91,6 +94,7 @@ async def health_check(observability: ObservabilityService = Depends(get_observa
 
 
 @app.get("/metrics")
+@trace_async("metrics")
 async def get_metrics(observability: ObservabilityService = Depends(get_observability)):
     """Prometheus metrics endpoint for DevEnviro monitoring stack."""
     from fastapi.responses import PlainTextResponse
@@ -99,6 +103,7 @@ async def get_metrics(observability: ObservabilityService = Depends(get_observab
 
 # Tool Management Endpoints
 @app.post("/tools/register")
+@trace_async("register_tool")
 async def register_tool(
     tool_request: ToolRegistrationRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
@@ -134,6 +139,7 @@ async def register_tool(
 
 
 @app.get("/tools/{tool_id}")
+@trace_async("get_tool")
 async def get_tool(
     tool_id: int, postgres_client: PostgresClient = Depends(get_postgres_client)
 ):
@@ -153,6 +159,7 @@ async def get_tool(
 
 
 @app.get("/tools")
+@trace_async("get_all_tools")
 async def get_all_tools(postgres_client: PostgresClient = Depends(get_postgres_client)):
     """Get all registered tools"""
     try:
@@ -164,6 +171,7 @@ async def get_all_tools(postgres_client: PostgresClient = Depends(get_postgres_c
 
 
 @app.get("/tools/search")
+@trace_async("search_tools")
 async def search_tools(
     query: str,
     limit: int = 10,
@@ -180,7 +188,8 @@ async def search_tools(
 
 # Memory Management Endpoints
 @app.post("/memory/store")
-@trace_async("memory.store")
+
+
 async def store_memory(
     store_request: StoreRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
@@ -200,7 +209,6 @@ async def store_memory(
     """
     try:
         import time
-        start_time = time.time()
 
         # Step 1: Generate an embedding for the content
         embedding = qdrant_client.generate_placeholder_embedding(store_request.content)
@@ -254,7 +262,7 @@ async def store_memory(
                 observability.record_concepts_extracted(len(concepts))
 
                 # Create memory node in Neo4j knowledge graph
-                memory_node = neo4j_client.create_memory_node(
+                neo4j_client.create_memory_node(
                     memory_id=memory_id,
                     content=store_request.content,
                     concepts=concepts
@@ -312,6 +320,8 @@ async def store_memory(
         raise HTTPException(status_code=500, detail=f"Error storing memory: {str(e)}")
 
 @app.post("/memory/{tier}/store")
+
+
 async def store_memory_by_tier(
     tier: str,
     store_request: StoreRequest,
@@ -343,12 +353,12 @@ async def store_memory_by_tier(
         # Tier 3: Neo4j (Semantic Memory)
         try:
             # For Neo4j, we need to extract concepts and create a memory node.
-            # We can reuse the logic from the main /memory/store endpoint.
+            # We can get the memory_id from the metadata, or generate a random one if not provided.
+            memory_id = store_request.metadata.get("memory_id", random.randint(10000, 99999))
             concepts = neo4j_client.extract_concepts_from_content(store_request.content)
-            memory_id = store_request.metadata.get("memory_id", -1)
-            memory_node = neo4j_client.store_memory(memory_id, store_request.content, concepts)
+            neo4j_client.store_memory(memory_id, store_request.content, concepts)
             observability.record_memory_operation("neo4j_store", "success", "tier3")
-            return {"success": True, "tier": 3, "node": memory_node, "message": "Memory stored in Neo4j"}
+            return {"success": True, "tier": 3, "message": "Memory stored in Neo4j"}
         except Exception as e:
             observability.record_memory_operation("neo4j_store", "failed", "tier3")
             raise HTTPException(status_code=500, detail=f"Error storing memory in Neo4j: {str(e)}")
@@ -357,6 +367,7 @@ async def store_memory_by_tier(
 
 
 @app.get("/memory/{memory_id}")
+@trace_async("get_memory")
 async def get_memory(
     memory_id: int, postgres_client: PostgresClient = Depends(get_postgres_client)
 ):
@@ -378,6 +389,8 @@ async def get_memory(
 
 
 @app.post("/memory/query")
+
+
 async def query_memory(
     query_request: QueryRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
@@ -448,10 +461,12 @@ async def query_memory(
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying memory: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error querying memory: {str(e)}"
+        )
 
 
 @app.get("/memory/search")
+@trace_async("search_memories")
 async def search_memories(
     query: str,
     top_k: int = 5,
@@ -473,6 +488,8 @@ async def search_memories(
 
 # Graph Query Endpoint
 @app.post("/graph/query")
+
+
 async def query_graph(
     query_request: GraphQueryRequest,
     neo4j_client: Neo4jClient = Depends(get_neo4j_client)

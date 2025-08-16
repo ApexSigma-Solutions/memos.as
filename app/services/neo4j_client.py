@@ -1,18 +1,10 @@
-"""
-Neo4j client for memOS.as Tier 3 Knowledge Graph management.
-
-This client handles:
-- Connection management with Neo4j database
-- Creating and managing graph nodes (Memory, Tool, Concept, Agent)
-- Creating and querying relationships between entities
-- Concept extraction and knowledge graph construction
-"""
-
 import os
 from typing import Dict, List, Optional
 from contextlib import contextmanager
 
 from neo4j import GraphDatabase, Driver, Session
+
+from app.services.observability import get_observability
 
 
 class Neo4jClient:
@@ -24,6 +16,7 @@ class Neo4jClient:
     """
 
     def __init__(self):
+        self.observability = get_observability()
         self.uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
         self.username = os.environ.get("NEO4J_USERNAME", "neo4j")
         self.password = os.environ.get("NEO4J_PASSWORD", "password")
@@ -42,9 +35,9 @@ class Neo4jClient:
             # Test connection
             with self.driver.session() as session:
                 session.run("RETURN 1")
-            print(f"Connected to Neo4j at {self.uri}")
+            self.observability.log_structured("info", "Connected to Neo4j", uri=self.uri)
         except Exception as e:
-            print(f"Failed to connect to Neo4j: {e}")
+            self.observability.log_structured("error", "Failed to connect to Neo4j", error=str(e))
             self.driver = None
 
     def _create_constraints(self):
@@ -112,6 +105,7 @@ class Neo4jClient:
             for concept in concepts:
                 self._create_concept_relationship(session, memory_id, concept)
 
+            self.observability.record_knowledge_graph_operation("create_memory_node", "Memory")
             return dict(memory_node)
 
     def create_tool_node(self, name: str, description: str, usage: str, tags: List[str] = None) -> Dict:
@@ -134,6 +128,7 @@ class Neo4jClient:
                 tags=tags
             )
 
+            self.observability.record_knowledge_graph_operation("create_tool_node", "Tool")
             return dict(result.single()["t"])
 
     def create_concept_node(self, name: str, description: str = None) -> Dict:
@@ -150,6 +145,7 @@ class Neo4jClient:
                 description=description
             )
 
+            self.observability.record_knowledge_graph_operation("create_concept_node", "Concept")
             return dict(result.single()["c"])
 
     def create_agent_node(self, name: str, role: str = None, capabilities: List[str] = None) -> Dict:
@@ -170,6 +166,7 @@ class Neo4jClient:
                 capabilities=capabilities
             )
 
+            self.observability.record_knowledge_graph_operation("create_agent_node", "Agent")
             return dict(result.single()["a"])
 
     def store_memory(self, memory_id: int, content: str, concepts: List[str] = None) -> Dict:
@@ -193,6 +190,7 @@ class Neo4jClient:
             memory_id=memory_id,
             concept=concept
         )
+        self.observability.record_knowledge_graph_operation("create_concept_relationship", "MENTIONS")
 
     def create_relationship(self, from_node: Dict, to_node: Dict, relationship_type: str, properties: Dict = None):
         """Create a relationship between two nodes."""
@@ -219,6 +217,7 @@ class Neo4jClient:
                 properties=properties
             )
 
+            self.observability.record_knowledge_graph_operation("create_relationship", relationship_type)
             return dict(result.single()["r"]) if result.peek() else None
 
     # Query Methods

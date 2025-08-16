@@ -2,8 +2,12 @@ import httpx
 import pytest
 import random
 import redis
+import os
 from app.services.redis_client import RedisClient
 from app.services.neo4j_client import Neo4jClient
+
+API_HOST = os.environ.get("API_HOST", "localhost")
+BASE_URL = f"http://{API_HOST}:8090"
 
 @pytest.fixture(scope="module")
 def redis_client():
@@ -28,7 +32,7 @@ def test_store_memory_tier1(redis_client):
     """
     Tests the POST /memory/1/store endpoint (Redis).
     """
-    url = "http://localhost:8091/memory/1/store"
+    url = f"{BASE_URL}/memory/1/store"
     content = "Test memory for Tier 1"
     payload = {
         "content": content,
@@ -58,7 +62,7 @@ def test_store_memory_tier2():
     """
     Tests the POST /memory/2/store endpoint (PostgreSQL & Qdrant).
     """
-    url = "http://localhost:8091/memory/2/store"
+    url = f"{BASE_URL}/memory/2/store"
     content = "Test memory for Tier 2"
     payload = {
         "content": content,
@@ -83,13 +87,12 @@ def test_store_memory_tier3(neo4j_client):
     """
     Tests the POST /memory/3/store endpoint (Neo4j).
     """
-    url = "http://localhost:8091/memory/3/store"
+    url = f"{BASE_URL}/memory/3/store"
     content = "Test memory for Tier 3"
     # Generate a random memory_id to avoid conflicts
-    memory_id = random.randint(1000, 9999)
     payload = {
         "content": content,
-        "metadata": {"source": "test", "memory_id": memory_id}
+        "metadata": {"source": "test", "memory_id": random.randint(1000, 9999)}
     }
 
     try:

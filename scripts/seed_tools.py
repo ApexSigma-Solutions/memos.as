@@ -8,14 +8,16 @@ that are commonly available in the DevEnviro ecosystem.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.services.postgres_client import get_postgres_client
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def seed_initial_tools():
     """Seed the database with initial tools"""
-    
+
     postgres_client = get_postgres_client()
-    
+
     # Initial tool definitions
     initial_tools = [
         {
@@ -79,7 +81,7 @@ def seed_initial_tools():
             "tags": ["web", "scraping", "data-extraction", "automation"]
         }
     ]
-    
+
     # Register each tool
     registered_count = 0
     for tool in initial_tools:
@@ -90,47 +92,47 @@ def seed_initial_tools():
                 usage=tool["usage"],
                 tags=tool["tags"]
             )
-            
+
             if tool_id:
                 print(f"✅ Registered tool: {tool['name']} (ID: {tool_id})")
                 registered_count += 1
             else:
                 print(f"⚠️  Tool already exists: {tool['name']}")
-                
+
         except Exception as e:
             print(f"❌ Failed to register tool {tool['name']}: {e}")
-    
+
     print(f"\n🎉 Seeding complete! Registered {registered_count} new tools.")
     return registered_count
 
 def list_registered_tools():
     """List all currently registered tools"""
     postgres_client = get_postgres_client()
-    
+
     try:
         tools = postgres_client.get_all_tools()
-        
+
         if not tools:
             print("No tools are currently registered.")
             return
-        
+
         print(f"\n📋 Currently registered tools ({len(tools)}):")
         print("-" * 80)
-        
+
         for tool in tools:
             print(f"ID: {tool['id']} | Name: {tool['name']}")
             print(f"Description: {tool['description']}")
             print(f"Tags: {', '.join(tool['tags']) if tool['tags'] else 'None'}")
             print(f"Created: {tool['created_at']}")
             print("-" * 80)
-            
+
     except Exception as e:
         print(f"❌ Failed to list tools: {e}")
 
 if __name__ == "__main__":
     print("🔧 memOS.as Tool Seeding Script")
     print("=" * 50)
-    
+
     if len(sys.argv) > 1 and sys.argv[1] == "--list":
         list_registered_tools()
     else:

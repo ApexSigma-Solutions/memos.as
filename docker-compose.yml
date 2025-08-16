@@ -12,6 +12,17 @@ services:
     networks:
       - devenviroas_default
 
+  test-runner:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /code
+      API_HOST: memos-api
+    networks:
+      - devenviroas_default
+    command: ["pytest", "-v", "/code/tests/"]
+
 networks:
   devenviroas_default:
     # This tells Docker Compose to use an existing network
