@@ -9,7 +9,7 @@ This client handles:
 """
 
 import os
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from contextlib import contextmanager
 
 from neo4j import GraphDatabase, Driver, Session
@@ -18,7 +18,7 @@ from neo4j import GraphDatabase, Driver, Session
 class Neo4jClient:
     """
     Neo4j client for Tier 3 Knowledge Graph operations.
-    
+
     Manages conceptual relationships between memories, tools, concepts, and agents
     to provide higher-level understanding and context awareness.
     """
@@ -27,7 +27,7 @@ class Neo4jClient:
         self.uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
         self.username = os.environ.get("NEO4J_USERNAME", "neo4j")
         self.password = os.environ.get("NEO4J_PASSWORD", "password")
-        
+
         self.driver: Optional[Driver] = None
         self._connect()
         self._create_constraints()
@@ -36,7 +36,7 @@ class Neo4jClient:
         """Establish connection to Neo4j database."""
         try:
             self.driver = GraphDatabase.driver(
-                self.uri, 
+                self.uri,
                 auth=(self.username, self.password)
             )
             # Test connection
@@ -51,19 +51,19 @@ class Neo4jClient:
         """Create uniqueness constraints for core node types."""
         if not self.driver:
             return
-            
+
         constraints = [
             "CREATE CONSTRAINT memory_id_unique IF NOT EXISTS FOR (m:Memory) REQUIRE m.id IS UNIQUE",
-            "CREATE CONSTRAINT tool_name_unique IF NOT EXISTS FOR (t:Tool) REQUIRE t.name IS UNIQUE", 
+            "CREATE CONSTRAINT tool_name_unique IF NOT EXISTS FOR (t:Tool) REQUIRE t.name IS UNIQUE",
             "CREATE CONSTRAINT concept_name_unique IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE",
             "CREATE CONSTRAINT agent_name_unique IF NOT EXISTS FOR (a:Agent) REQUIRE a.name IS UNIQUE"
         ]
-        
+
         with self.driver.session() as session:
             for constraint in constraints:
                 try:
                     session.run(constraint)
-                except Exception as e:
+                except Exception:
                     # Constraint might already exist
                     pass
 
@@ -72,7 +72,7 @@ class Neo4jClient:
         """Context manager for Neo4j sessions."""
         if not self.driver:
             raise Exception("Neo4j driver not initialized")
-        
+
         session = self.driver.session()
         try:
             yield session
@@ -85,11 +85,11 @@ class Neo4jClient:
             self.driver.close()
 
     # Node Creation Methods
-    
+
     def create_memory_node(self, memory_id: int, content: str, concepts: List[str] = None) -> Dict:
         """Create a Memory node and link it to extracted concepts."""
         concepts = concepts or []
-        
+
         with self.get_session() as session:
             # Create memory node
             result = session.run(
@@ -105,19 +105,19 @@ class Neo4jClient:
                 memory_id=memory_id,
                 content=content
             )
-            
+
             memory_node = result.single()["m"]
-            
+
             # Create concept nodes and relationships
             for concept in concepts:
                 self._create_concept_relationship(session, memory_id, concept)
-            
+
             return dict(memory_node)
 
     def create_tool_node(self, name: str, description: str, usage: str, tags: List[str] = None) -> Dict:
         """Create a Tool node."""
         tags = tags or []
-        
+
         with self.get_session() as session:
             result = session.run(
                 """
@@ -133,7 +133,7 @@ class Neo4jClient:
                 usage=usage,
                 tags=tags
             )
-            
+
             return dict(result.single()["t"])
 
     def create_concept_node(self, name: str, description: str = None) -> Dict:
@@ -149,13 +149,13 @@ class Neo4jClient:
                 name=name,
                 description=description
             )
-            
+
             return dict(result.single()["c"])
 
     def create_agent_node(self, name: str, role: str = None, capabilities: List[str] = None) -> Dict:
         """Create an Agent node."""
         capabilities = capabilities or []
-        
+
         with self.get_session() as session:
             result = session.run(
                 """
@@ -169,11 +169,17 @@ class Neo4jClient:
                 role=role,
                 capabilities=capabilities
             )
-            
+
             return dict(result.single()["a"])
 
+    def store_memory(self, memory_id: int, content: str, concepts: List[str] = None) -> Dict:
+        """
+        Store a new memory node in the knowledge graph.
+        """
+        return self.create_memory_node(memory_id, content, concepts)
+
     # Relationship Creation Methods
-    
+
     def _create_concept_relationship(self, session: Session, memory_id: int, concept: str):
         """Create relationship between Memory and Concept."""
         session.run(
@@ -191,12 +197,12 @@ class Neo4jClient:
     def create_relationship(self, from_node: Dict, to_node: Dict, relationship_type: str, properties: Dict = None):
         """Create a relationship between two nodes."""
         properties = properties or {}
-        
+
         with self.get_session() as session:
             # Determine node labels and identifiers
             from_label = list(from_node.keys())[0] if from_node else "Memory"
             to_label = list(to_node.keys())[0] if to_node else "Concept"
-            
+
             query = f"""
             MATCH (from:{from_label} {{id: $from_id}})
             MATCH (to:{to_label} {{id: $to_id}})
@@ -205,22 +211,22 @@ class Neo4jClient:
             SET r.created_at = COALESCE(r.created_at, datetime())
             RETURN r
             """
-            
+
             result = session.run(
                 query,
                 from_id=from_node.get("id"),
                 to_id=to_node.get("id"),
                 properties=properties
             )
-            
+
             return dict(result.single()["r"]) if result.peek() else None
 
     # Query Methods
-    
+
     def find_related_memories(self, memory_id: int, relationship_types: List[str] = None, limit: int = 10) -> List[Dict]:
         """Find memories related to the given memory through concepts."""
         relationship_types = relationship_types or ["MENTIONS"]
-        
+
         with self.get_session() as session:
             result = session.run(
                 """
@@ -233,8 +239,8 @@ class Neo4jClient:
                 memory_id=memory_id,
                 limit=limit
             )
-            
-            return [{"memory": dict(record["m2"]), "shared_concepts": record["shared_concepts"]} 
+
+            return [{"memory": dict(record["m2"]), "shared_concepts": record["shared_concepts"]}
                    for record in result]
 
     def find_tools_by_concept(self, concept: str, limit: int = 5) -> List[Dict]:
@@ -250,8 +256,8 @@ class Neo4jClient:
                 concept=concept,
                 limit=limit
             )
-            
-            return [{"tool": dict(record["t"]), "usage_count": record["usage_count"]} 
+
+            return [{"tool": dict(record["t"]), "usage_count": record["usage_count"]}
                    for record in result]
 
     def get_concept_network(self, concept: str, depth: int = 2) -> Dict:
@@ -266,10 +272,10 @@ class Neo4jClient:
                 concept=concept,
                 depth=depth
             )
-            
+
             nodes = set()
             relationships = []
-            
+
             for record in result:
                 path = record["path"]
                 for node in path.nodes:
@@ -281,7 +287,7 @@ class Neo4jClient:
                         "type": rel.type,
                         "properties": dict(rel)
                     })
-            
+
             return {
                 "nodes": [{"id": node_id, "properties": props} for node_id, props in nodes],
                 "relationships": relationships
@@ -291,23 +297,23 @@ class Neo4jClient:
         """Extract concepts from content using simple keyword extraction."""
         # This is a placeholder implementation
         # In production, you might use NLP libraries like spaCy, NLTK, or LLM APIs
-        
+
         # Simple keyword extraction based on length and common patterns
         words = content.lower().split()
         concepts = []
-        
+
         # Extract longer words (potential concepts)
         for word in words:
             if len(word) > 4 and word.isalpha():
                 concepts.append(word.title())
-        
+
         # Remove duplicates and return first 10
         return list(set(concepts))[:10]
 
     def run_cypher_query(self, query: str, parameters: Dict = None) -> List[Dict]:
         """Execute a raw Cypher query."""
         parameters = parameters or {}
-        
+
         with self.get_session() as session:
             result = session.run(query, parameters)
             return [dict(record) for record in result]

@@ -6,7 +6,7 @@ pydantic-settings
 
 # Database & ORM
 # requirements.txt (updated to use constraints.txt for pinning)
--c constraints.txt
+
 sqlalchemy
 psycopg2-binary    # consider switching to psycopg>=3.1,<4.0 for long-term support
 redis
@@ -42,3 +42,4 @@ opentelemetry-instrumentation-sqlalchemy
 opentelemetry-instrumentation-redis
 opentelemetry-exporter-jaeger-thrift
 structlog
+deprecated

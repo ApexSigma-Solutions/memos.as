@@ -18,3 +18,9 @@ class ToolRegistrationRequest(BaseModel):
     description: str
     usage: str
     tags: Optional[List[str]] = None
+
+
+class GraphQueryRequest(BaseModel):
+    node_label: str
+    filters: Dict[str, Any] = {}
+    return_properties: Optional[List[str]] = None

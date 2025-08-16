@@ -72,10 +72,6 @@ The project uses Alembic for database migrations. The database URL is set dynami
 *   **Database Schema:** The database schema is managed with Alembic migrations. The initial schema includes tables for `active_context`, `product_context`, `decisions`, `custom_data`, `system_patterns`, `progress_entries`, and `context_links`.
 *   **Testing:** *TODO: Add information on testing practices once they are established.*
 
-## ConPort Agent Memory Protocol
-
-This project implements the ConPort Agent Memory Protocol - a mandatory set of rules for AI agent interaction with the shared memory system.
-
 ### Session Initialization Protocol (MANDATORY)
 Every agent session must begin with:
 1. **Check for existing context**: Look for `context.db` file in workspace
@@ -88,13 +84,14 @@ Every agent session must begin with:
 - **Proactive Knowledge Management**: Identify and suggest logging decisions, progress, and relationships
 
 ### Memory System Integration
-When working with the byterover-mcp system:
-- Always use `byterover-retrieve-knowledge` before starting tasks to get relevant context
-- Always use `byterover-store-knowledge` to store critical information after successful task completion
+
+-  **ConPort Agent Memory Protocol**
+
+- This project implements the ConPort Agent Memory Protocol - a mandatory set of rules for AI agent interaction with the shared memory system.
 
 ### Society of Agents Collaboration
 The system supports role-based collaboration:
 - **@Claude**: Architect role
-- **@Gemini**: Implementer role  
+- **@Gemini**: Implementer role
 - **@Qodo**: QA role
 - **Mandatory Agent Review (MAR)**: All artifacts require review and approval before integration

@@ -1,7 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-import os
 
 # Create test client
 client = TestClient(app)
@@ -64,7 +63,7 @@ def test_memory_query():
     """Test memory query endpoint"""
     # First store a memory
     memory_id = test_memory_store()
-    
+
     # Then query for it
     response = client.post("/memory/query", json=test_query)
     print(f"Memory query response: {response.status_code}")
@@ -83,7 +82,7 @@ def test_memory_query():
 def test_end_to_end_flow():
     """Test complete end-to-end workflow"""
     print("\n=== End-to-End Integration Test ===")
-    
+
     # Step 1: Register a tool
     print("1. Registering tool...")
     tool_response = client.post("/tools/register", json=test_tool)
@@ -91,7 +90,7 @@ def test_end_to_end_flow():
         print("✅ Tool registration successful")
     else:
         print(f"❌ Tool registration failed: {tool_response.text}")
-    
+
     # Step 2: Store a memory
     print("2. Storing memory...")
     memory_response = client.post("/memory/store", json=test_memory)
@@ -100,21 +99,21 @@ def test_end_to_end_flow():
         print(f"✅ Memory storage successful (ID: {memory_data.get('memory_id')})")
     else:
         print(f"❌ Memory storage failed: {memory_response.text}")
-    
+
     # Step 3: Query for memories and tools
     print("3. Querying memories...")
     query_response = client.post("/memory/query", json=test_query)
     if query_response.status_code == 200:
         query_data = query_response.json()
-        print(f"✅ Query successful:")
+        print("✅ Query successful:")
         print(f"   - Found {query_data['memories']['count']} relevant memories")
         print(f"   - Found {query_data['tools']['count']} relevant tools")
-        
+
         # Detailed assertions
         assert "memories" in query_data
         assert "tools" in query_data
         assert "search_metadata" in query_data
-        
+
         print("✅ End-to-end flow completed successfully!")
         return query_data
     else:

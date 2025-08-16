@@ -1,5 +1,5 @@
 import os
-
+import json
 import redis
 
 
@@ -21,6 +21,19 @@ class RedisClient:
         """
         value = self.client.get(key)
         return value.decode("utf-8") if value else None
+
+    def store_memory(self, key: str, memory_data: dict):
+        """
+        Store a memory in Redis.
+        """
+        self.client.set(key, json.dumps(memory_data))
+
+    def get_memory(self, key: str) -> dict:
+        """
+        Get a memory from Redis.
+        """
+        value = self.client.get(key)
+        return json.loads(value) if value else None
 
 
 # Global Redis client instance
