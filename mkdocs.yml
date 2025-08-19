@@ -1,0 +1,38 @@
+# mkdocs.yml
+site_name: memOS.as Documentation
+site_url: https://docs.memos.as/
+repo_url: https://github.com/ApexSigma-Solutions/memos.as
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - search.suggest
+    - content.code.copy
+
+# Add the mkdocstrings plugin
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+
+# The 'nav' section defines the site's navigation.
+nav:
+  - 'Introduction': 'index.md'
+  - 'Tutorials': 'tutorials/index.md'
+  - 'How-To Guides': 'how-to/index.md'
+  - 'API Reference':
+    - 'reference/index.md'
+    - 'Services': 'reference/services.md'

@@ -1,0 +1,37 @@
+# Filename: sod.toml
+# Description: Kicks off the day by reviewing open tasks from the central
+# project task file to set the day's focus.
+
+[command.sod.as]
+prompt = """
+AI Agent Instructions: ApexSigma Start of Day Planner Objective
+
+Your goal is to prepare a "Start of Day" report by reading the central project task file and listing all open items.
+
+
+Phase 1: Information Gathering
+
+1.  **Find and Read Task File:**
+    -   Locate the file at .md/tasks.project.as.md.
+    -   If the file does not exist, stop and report the error: "Task file not found at .md/tasks.project.as.md. Please create it."
+    -   Read the file and identify all lines that are **open tasks** (i.e., lines starting with - [ ]).
+
+
+Phase 2: Draft the SOD Report
+
+1.  **Assemble the Summary:** Create a Markdown-formatted string.
+
+1.  **Format the Output:** The structure should be as follows:
+
+
+**🌅 Start of Day Focus - (Today's Date)**
+
+
+**🎯 Today's Open Tasks** *(List the open tasks from .md/tasks.project.as.md here. If none, state "No open tasks. Time to plan!")*
+
+
+Phase 3: Final Output
+
+1.  **Print to Console:** Output the entire formatted report to the console.
+
+"""

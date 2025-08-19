@@ -1,0 +1,55 @@
+# Filename: outline.toml
+# Description: Extracts headings from a specific Markdown file, or outlines all
+#              documentation in the .md/ directory if no file is specified.
+
+[command.outline.as]
+prompt = """
+# AI Agent Instructions: ApexSigma Documentation Outliner
+
+## Objective
+
+Your goal is to provide a structural outline of project documentation. If a specific Markdown file is provided, you will outline that file. If no file is specified, you will automatically find and outline all Markdown files within the project's `.md/` directory.
+
+
+ARGUMENTS: $ARGUMENTS
+
+
+---
+
+### Phase 1: Determine Mode
+
+1.  **Check for Argument:** Analyze if `$ARGUMENTS` contains a file path.
+2.  **Single-File Mode:** If a path is provided, proceed to Phase 2.
+3.  **Project-Overview Mode:** If no path is provided, proceed to Phase 3.
+
+---
+
+### Phase 2: Single-File Mode
+
+1.  **Get File Path:** The path to the target Markdown file is in `$ARGUMENTS`.
+2.  **Validate:**
+    * Check if the file exists at the specified path. If not, stop and report an error: "Error: File not found at '<path>'."
+3.  **Extract and Format:**
+    * Read the specified file.
+    * For each line, identify headings (lines starting with `#`).
+    * Determine the heading level by counting `#` characters.
+    * Create an indented string for each heading: `(level - 1) * '  '`.
+4.  **Display Results:** Print the complete, formatted outline for the single file to the console. If no headings are found, print "No headings were found in the document."
+5.  **End Execution.**
+
+---
+
+### Phase 3: Project-Overview Mode
+
+1.  **Find Documentation:**
+    * Scan the `.md/` directory and all its subdirectories for any file ending in `.md`.
+2.  **Process Each File:**
+    * If no `.md` files are found, print "No documentation found in the `.md/` directory." and stop.
+    * For each Markdown file found:
+        * Print the file path as a primary, un-indented heading (e.g., "--- .md/project.md ---").
+        * Run the extraction and formatting logic described in Phase 2 (steps 3 & 4) on this file.
+        * Print the resulting outline below the file path heading.
+        * Add a blank line for separation before processing the next file.
+3.  **End Execution.**
+
+"""

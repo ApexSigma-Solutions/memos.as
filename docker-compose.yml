@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  memos-api:
+    build: .
+    container_name: devenviro_memos_api
+    ports:
+      - "8091:8090" # Expose on a different host port to avoid conflicts
+    env_file:
+      - .env
+    # Connect this service to the existing DevEnviro network
+    networks:
+      - devenviroas_default
+
+  test-runner:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /code
+      API_HOST: memos-api
+    networks:
+      - devenviroas_default
+    command: ["pytest", "-v", "/code/tests/"]
+
+networks:
+  devenviroas_default:
+    # This tells Docker Compose to use an existing network
+    external: true
