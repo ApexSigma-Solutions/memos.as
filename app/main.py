@@ -312,6 +312,7 @@ async def store_memory(
         raise HTTPException(status_code=500, detail=f"Error storing memory: {str(e)}")
 
 @app.post("/memory/{tier}/store")
+@trace_async("memory.store_by_tier")
 async def store_memory_by_tier(
     tier: str,
     store_request: StoreRequest,
@@ -342,10 +343,15 @@ async def store_memory_by_tier(
     elif tier == "3":
         # Tier 3: Neo4j (Semantic Memory)
         try:
-            # For Neo4j, we need to extract concepts and create a memory node.
-            # We can reuse the logic from the main /memory/store endpoint.
+            # First, store in PostgreSQL to get a unique ID
+            memory_id = postgres_client.store_memory(
+                content=store_request.content, metadata=store_request.metadata
+            )
+            if not memory_id:
+                raise HTTPException(status_code=500, detail="Failed to store memory in PostgreSQL")
+
+            # Then, store in Neo4j with the new ID
             concepts = neo4j_client.extract_concepts_from_content(store_request.content)
-            memory_id = store_request.metadata.get("memory_id", -1)
             memory_node = neo4j_client.store_memory(memory_id, store_request.content, concepts)
             observability.record_memory_operation("neo4j_store", "success", "tier3")
             return {"success": True, "tier": 3, "node": memory_node, "message": "Memory stored in Neo4j"}
@@ -499,6 +505,44 @@ async def query_graph(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying graph: {str(e)}")
+
+@app.get("/graph/related")
+async def get_related(
+    node_id: str,
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+):
+    """Get all directly connected nodes and their relationships."""
+    try:
+        result = neo4j_client.get_related_nodes(node_id)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting related nodes: {str(e)}")
+
+@app.get("/graph/shortest-path")
+async def get_shortest_path(
+    start_node_id: str,
+    end_node_id: str,
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+):
+    """Calculate and return the shortest path between two nodes."""
+    try:
+        result = neo4j_client.get_shortest_path(start_node_id, end_node_id)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting shortest path: {str(e)}")
+
+@app.get("/graph/subgraph")
+async def get_subgraph(
+    node_id: str,
+    depth: int = 1,
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+):
+    """Get the subgraph surrounding a central node."""
+    try:
+        result = neo4j_client.get_subgraph(node_id, depth)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting subgraph: {str(e)}")
 
 
 if __name__ == "__main__":

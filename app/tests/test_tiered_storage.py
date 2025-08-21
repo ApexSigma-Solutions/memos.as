@@ -11,8 +11,6 @@ def redis_client():
     Fixture to initialize the Redis client for the test module.
     """
     client = RedisClient()
-    client.host = "localhost"
-    client.client = redis.Redis(host=client.host, port=client.port, db=0)
     return client
 
 @pytest.fixture(scope="module")

@@ -1,0 +1,52 @@
+{
+  "ingest_metadata": {
+    "file_id": "agent_context_bullet_20250818.json",
+    "version": "1.0",
+    "timestamp": "2025-08-18T22:10:00Z",
+    "description": "A token-efficient knowledge artifact summarizing the current project state and immediate priorities for the development session on August 18, 2025."
+  },
+  "mission_brief": {
+    "objective": "Continue development of the ApexSigma 'Society of Agents' ecosystem.",
+    "agent_roster": {
+      "primary": ["Gemini CLI", "Claude Code"],
+      "support": "Qwen-34B Thinking",
+      "embedding_service": "nomic-embed-text v1.5"
+    }
+  },
+  "project_status": [
+    {
+      "name": "memOS.as",
+      "status": "Feature-Complete",
+      "details": "The multi-tier memory (Redis, PG/Qdrant, Neo4j) and observability stack are implemented and stable. Milestone 1 work is committed to 'feature/memos-core-implementation'."
+    },
+    {
+      "name": "InGest-LLM.as",
+      "status": "Scaffolded",
+      "details": "Project is set up with a modern Python toolchain (Poetry, Ruff) and is ready for feature development. End-to-end data flow to memOS.as has been validated."
+    }
+  ],
+  "critical_blocker": {
+    "issue": "Docker networking misconfiguration",
+    "impact": "Blocks all integration testing and inter-service development between the 13 containerized services.",
+    "status": "A solution has been designed and is ready for implementation."
+  },
+  "immediate_priorities": [
+    {
+      "priority": "CRITICAL",
+      "task": "Implement Unified Docker Network",
+      "description": "Implement the designed fix to unblock all other development and testing."
+    },
+    {
+      "priority": "HIGH",
+      "project": "memOS.as",
+      "task": "Develop Graph API",
+      "description": "Begin development on the API endpoints that will expose the Neo4j knowledge graph capabilities."
+    },
+    {
+      "priority": "HIGH",
+      "project": "InGest-LLM.as",
+      "task": "Prototype Core Modules",
+      "description": "Begin development on the web scraper (Scrapy/POML) and the Redis-based LLM Cache for prompt optimization."
+    }
+  ]
+}

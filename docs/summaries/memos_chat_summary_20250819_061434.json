@@ -1,0 +1,180 @@
+{
+  "session_id": "memos_summary_20250819_061433",
+  "service": "memos.as",
+  "generated_at": "2025-08-19T06:14:34.004956",
+  "source_file": "..\\test_ecosystem_chat_sample.txt",
+  "source_hash": "de27ba9a42a50225",
+  "analysis": {
+    "content_type": "text",
+    "total_lines": 71,
+    "total_words": 341,
+    "total_characters": 2616,
+    "estimated_reading_time_minutes": 1.705
+  },
+  "memos_keywords": {
+    "memory": 8,
+    "memos": 3,
+    "conport": 2,
+    "context": 0,
+    "storage": 0,
+    "postgres": 2,
+    "redis": 1,
+    "qdrant": 1,
+    "neo4j": 1,
+    "vector": 2,
+    "graph": 1,
+    "cache": 1,
+    "retrieve": 0,
+    "store": 0,
+    "query": 0
+  },
+  "important_sections": [
+    {
+      "line_number": 4,
+      "content": "Assistant: I'll help you deploy the complete Society of Agents ecosystem with DevEnviro orchestratio..."
+    },
+    {
+      "line_number": 20,
+      "content": "User: Now configure the memory systems with MemOS"
+    },
+    {
+      "line_number": 21,
+      "content": "Assistant: Configuring MemOS.as with ConPort protocol for tiered memory management."
+    },
+    {
+      "line_number": 23,
+      "content": "Memory tiers activated:"
+    },
+    {
+      "line_number": 24,
+      "content": "- Redis for working memory and cache"
+    },
+    {
+      "line_number": 25,
+      "content": "- PostgreSQL for procedural memory with complex schemas"
+    },
+    {
+      "line_number": 29,
+      "content": "ConPort protocol initialized for agent memory operations."
+    },
+    {
+      "line_number": 30,
+      "content": "Memory tier synchronization complete."
+    },
+    {
+      "line_number": 55,
+      "content": "Assistant: Testing complete ApexSigma ecosystem integration."
+    },
+    {
+      "line_number": 58,
+      "content": "\u2705 DevEnviro agent communication successful"
+    },
+    {
+      "line_number": 59,
+      "content": "\u2705 MemOS memory operations working"
+    },
+    {
+      "line_number": 65,
+      "content": "SUCCESS: Full ApexSigma ecosystem operational with 16 containers running."
+    }
+  ],
+  "environment_snapshot": {
+    "timestamp": "2025-08-19T06:14:34.004661",
+    "session_id": "memos_summary_20250819_061433",
+    "service": "memos.as",
+    "environment": {
+      "git_changes": [
+        "D ${workspaceFolder}/context_portal/logs/conport.log",
+        " D .mcp.json",
+        " M .md/.persist/PROGRESS_LOG.md",
+        " M .md/.project/task.project.as.md",
+        " M Dockerfile",
+        " D GEMINI.md",
+        " D InGestLLM/beta.ingest.as.json",
+        " D InGestLLM/omega.ingest.as/devenviro,.omega.ingest.as.json",
+        " D LICENSE",
+        " M app/main.py",
+        " M app/services/neo4j_client.py",
+        " M app/services/postgres_client.py",
+        " M app/services/qdrant_client.py",
+        " M app/services/redis_client.py",
+        " M context_portal/alembic/versions/__pycache__/2025_06_17_initial_schema.cpython-313.pyc",
+        " M context_portal/conport_vector_data/5b4b33a0-b5b7-4a85-87cf-4de5fc576a39/length.bin",
+        " M context_portal/conport_vector_data/chroma.sqlite3",
+        " M context_portal/context.db",
+        " M docker-compose.yml",
+        " D log_progress.py",
+        " D log_tiered_storage_progress.py",
+        " D log_troubleshooting.py",
+        " D tests/conftest.py",
+        " D tests/test_api.py",
+        " D tests/test_graph_api.py",
+        " D tests/test_integration.py",
+        " D tests/test_neo4j_client.py",
+        " D tests/test_tiered_storage.py",
+        "?? .ingest/",
+        "?? .md/.agenrt/.instruct/mkdocs.instruct.md",
+        "?? .md/.persist/.mcp.json",
+        "?? .md/.persist/session_2025-08-17.poml",
+        "?? .md/LICENSE",
+        "?? app/tests/",
+        "?? data/",
+        "?? docs/AGENT.md",
+        "?? docs/GEMINI.md",
+        "?? scripts/chat_thread_summarizer.py",
+        "?? scripts/log_progress.py",
+        "?? scripts/log_tiered_storage_progress.py",
+        "?? scripts/log_troubleshooting.py"
+      ],
+      "recent_commits": [
+        "221fa61 feat: Implement and test tiered storage endpoints",
+        "c68f36e Merge branch 'feature/memos-core-implementation' of https://github.com/ApexSigma-Solutions/memos.as into feature/memos-core-implementation",
+        "19faa33 feat: Implement comprehensive observability integration with DevEnviro stack",
+        "fe5c0a4 feat: Implement Tier 3 Knowledge Graph with Neo4j integration",
+        "2c9aaf9 Update requirements.txt"
+      ],
+      "memos_containers": [
+        "NAMES                 STATUS       PORTS",
+        "devenviro_memos_api   Up 5 hours   0.0.0.0:8091->8090/tcp, [::]:8091->8090/tcp"
+      ],
+      "network_containers": [
+        "devenviro_postgres",
+        "devenviro_rabbitmq",
+        "devenviro_jaeger",
+        "devenviro_prometheus",
+        "devenviro_loki",
+        "toolsas-app-1",
+        "devenviro_memos_api",
+        "neo4j-memtank",
+        "devenviro_ingest_llm_api",
+        "toolsas-db-1",
+        "devenviro_api",
+        "devenviro_promtail",
+        "devenviro_qdrant",
+        "devenviro_redis",
+        "devenviro_grafana",
+        "devenviro_docs"
+      ],
+      "python_version": "3.13.6 (tags/v3.13.6:4e66535, Aug  6 2025, 14:36:00) [MSC v.1944 64 bit (AMD64)]",
+      "working_directory": "C:\\Users\\steyn\\ApexSigmaProjects.Dev\\memos.as"
+    },
+    "memos_status": {
+      "containers_running": 1,
+      "network_unified": false,
+      "memory_tier_ready": false,
+      "storage_systems": {
+        "postgres_active": false,
+        "redis_active": true,
+        "qdrant_active": true,
+        "neo4j_active": true
+      },
+      "conport_protocol": "active"
+    }
+  },
+  "summary_text": "MemOS Chat Thread Summary:\n\nContent: 341 words across 71 lines\nReading Time: ~1.7 minutes\n\nKey Memory Topics: memory (8), memos (3), conport (2)\n\nImportant Memory Operations:\n- Line 4: Assistant: I'll help you deploy the complete Society of Agents ecosystem with DevEnviro orchestratio...\n- Line 20: User: Now configure the memory systems with MemOS\n- Line 21: Assistant: Configuring MemOS.as with ConPort protocol for tiered memory management.\n- Line 23: Memory tiers activated:\n- Line 24: - Redis for working memory and cache",
+  "recommendations": [
+    "Heavy memory operations detected - review ConPort protocol usage",
+    "Memory tiers incomplete - verify Postgres/Redis/Qdrant/Neo4j connectivity",
+    "Significant memory system changes - consider ConPort protocol validation"
+  ]
+}

@@ -14,9 +14,9 @@ This file tracks the specific, actionable tasks for the current development cycl
 
 ### Develop API Endpoints for Graph Queries
 
-*   [ ] **Schema:** Create a Pydantic model for a structured graph query request.
-*   [ ] **Endpoint:** Implement POST /graph/query in app/main.py.
-*   [ ] **Logic:** Implement the translation from the Pydantic request model to a dynamic Cypher query.
+*   [x] **Schema:** Create a Pydantic model for a structured graph query request.
+*   [x] **Endpoint:** Implement POST /graph/query in app/main.py.
+*   [x] **Logic:** Implement the translation from the Pydantic request model to a dynamic Cypher query.
 
 ### Implement chronos.as Subsystem (Tier 4)
 
@@ -29,4 +29,4 @@ This file tracks the specific, actionable tasks for the current development cycl
 *   [ ] **Endpoint:** Implement GET /history.
 *   [ ] **Querying:** Add logic to filter historical logs by a date range and event_type.
 
-```
+```     /

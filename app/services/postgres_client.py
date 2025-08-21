@@ -57,7 +57,7 @@ class PostgresClient:
     """
 
     def __init__(self):
-        self.host = os.environ.get("POSTGRES_HOST", "devenviro_postgres")
+        self.host = os.environ.get("POSTGRES_HOST", "localhost")
         self.port = int(os.environ.get("POSTGRES_PORT", 5432))
         self.database = os.environ.get("POSTGRES_DB", "memos_db")
         self.user = os.environ.get("POSTGRES_USER", "postgres")

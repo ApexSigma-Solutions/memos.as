@@ -273,25 +273,53 @@ class Neo4jClient:
                 depth=depth
             )
 
-            nodes = set()
-            relationships = []
+            return self._format_graph_output(result)
 
-            for record in result:
-                path = record["path"]
-                for node in path.nodes:
-                    nodes.add((node.id, dict(node)))
-                for rel in path.relationships:
-                    relationships.append({
-                        "start": rel.start_node.id,
-                        "end": rel.end_node.id,
-                        "type": rel.type,
-                        "properties": dict(rel)
-                    })
 
-            return {
-                "nodes": [{"id": node_id, "properties": props} for node_id, props in nodes],
-                "relationships": relationships
-            }
+    def get_related_nodes(self, node_id: str) -> Dict:
+        """Get all directly connected nodes and their relationships."""
+        with self.get_session() as session:
+            result = session.run(
+                """
+                MATCH (n) WHERE n.id = $node_id
+                MATCH (n)-[r]-(m)
+                RETURN n, r, m
+                """,
+                node_id=node_id
+            )
+            return self._format_graph_output(result)
+
+    def get_shortest_path(self, start_node_id: str, end_node_id: str) -> Dict:
+        """Calculate and return the shortest path between two nodes."""
+        with self.get_session() as session:
+            result = session.run(
+                """
+                MATCH (start), (end)
+                WHERE start.id = $start_node_id AND end.id = $end_node_id
+                CALL apoc.path.shortestPath(start, end, null, 10)
+                YIELD path
+                RETURN path
+                """,
+                start_node_id=start_node_id,
+                end_node_id=end_node_id
+            )
+            return self._format_graph_output(result)
+
+    def get_subgraph(self, node_id: str, depth: int = 1) -> Dict:
+        """Get the subgraph surrounding a central node."""
+        with self.get_session() as session:
+            result = session.run(
+                """
+                MATCH (n) WHERE n.id = $node_id
+                CALL apoc.path.subgraphAll(n, {maxLevel: $depth})
+                YIELD nodes, relationships
+                RETURN nodes, relationships
+                """,
+                node_id=node_id,
+                depth=depth
+            )
+            return self._format_graph_output(result)
+
 
     def extract_concepts_from_content(self, content: str) -> List[str]:
         """Extract concepts from content using simple keyword extraction."""
@@ -317,6 +345,55 @@ class Neo4jClient:
         with self.get_session() as session:
             result = session.run(query, parameters)
             return [dict(record) for record in result]
+
+    def _format_graph_output(self, result) -> Dict:
+        """Helper function to format graph query results."""
+        nodes = set()
+        relationships = []
+
+        for record in result:
+            if "path" in record:
+                path = record["path"]
+                for node in path.nodes:
+                    nodes.add((node.id, dict(node)))
+                for rel in path.relationships:
+                    relationships.append({
+                        "start": rel.start_node.id,
+                        "end": rel.end_node.id,
+                        "type": rel.type,
+                        "properties": dict(rel)
+                    })
+            else:
+                if "n" in record:
+                    node_n = record["n"]
+                    nodes.add((node_n.id, dict(node_n)))
+                if "m" in record:
+                    node_m = record["m"]
+                    nodes.add((node_m.id, dict(node_m)))
+                if "r" in record:
+                    rel = record["r"]
+                    relationships.append({
+                        "start": rel.start_node.id,
+                        "end": rel.end_node.id,
+                        "type": rel.type,
+                        "properties": dict(rel)
+                    })
+                if "nodes" in record and "relationships" in record:
+                    for node in record["nodes"]:
+                        nodes.add((node.id, dict(node)))
+                    for rel in record["relationships"]:
+                        relationships.append({
+                            "start": rel.start_node.id,
+                            "end": rel.end_node.id,
+                            "type": rel.type,
+                            "properties": dict(rel)
+                        })
+
+
+        return {
+            "nodes": [{"id": node_id, "properties": props} for node_id, props in nodes],
+            "relationships": relationships
+        }
 
 
 # Global client instance

@@ -18,7 +18,7 @@ class QdrantMemoryClient:
     """
 
     def __init__(self):
-        self.host = os.environ.get("QDRANT_HOST", "devenviro_qdrant")
+        self.host = os.environ.get("QDRANT_HOST", "localhost")
         self.port = int(os.environ.get("QDRANT_PORT", 6333))
         self.collection_name = "memories"
 

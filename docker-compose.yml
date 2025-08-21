@@ -10,9 +10,20 @@ services:
       - .env
     # Connect this service to the existing DevEnviro network
     networks:
-      - devenviroas_default
+      - apexsigma_net
+
+  test-runner:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /code # CORRECTED: Point to the project root
+      API_HOST: memos-api
+    networks:
+      - apexsigma_net
+    command: ["pytest", "-v", "/code/app/tests/"] # This is correct
 
 networks:
-  devenviroas_default:
+  apexsigma_net:
     # This tells Docker Compose to use an existing network
     external: true
