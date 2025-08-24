@@ -8,9 +8,15 @@ services:
       - "8091:8090" # Expose on a different host port to avoid conflicts
     env_file:
       - .env
+    environment:
+      - NEO4J_URI=bolt://devenviro_neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
     # Connect this service to the existing DevEnviro network
     networks:
-      - devenviroas_default
+      - apexsigma_net
+    extra_hosts:
+      - "devenviro_postgres:172.22.0.10"
 
   test-runner:
     build: .
@@ -20,10 +26,10 @@ services:
       PYTHONPATH: /code
       API_HOST: memos-api
     networks:
-      - devenviroas_default
-    command: ["pytest", "-v", "/code/tests/"]
+      - apexsigma_net
+    command: ["npx", "@dotenvx/dotenvx", "run", "--", "pytest", "-v", "/code/app/tests/"]
 
 networks:
-  devenviroas_default:
+  apexsigma_net:
     # This tells Docker Compose to use an existing network
     external: true

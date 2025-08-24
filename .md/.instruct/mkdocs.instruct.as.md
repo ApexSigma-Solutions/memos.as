@@ -75,12 +75,12 @@ Instead of manually creating API documentation, we will let mkdocstrings generat
 1.  **Create a Reference Markdown File:** In your `/docs` directory, create a file named `reference/services.md`.
 
 2.  **Add the Docstring Directive:** Inside this file, add a single line that tells mkdocstrings which Python module to scan. The `:::` syntax will automatically pull in all functions and classes from that file and render their docstrings.
-    
+
     ```text
     # /docs/reference/services.md
-    
+
     ::: app.main
-    
+
     ```
 
 ## Step 4: The Unified Build Process
@@ -99,7 +99,7 @@ Our `build_docs.py` script now has two primary responsibilities: copying our han
 2.  **Serve the site** using MkDocs.
     ``` bash
     mkdocs serve
-    
+
     ```
 3.  **View the site** at `http://127.0.0.1:8000`. Navigate to the "API Reference" section to see your auto-generated documentation from your Python docstrings.
 

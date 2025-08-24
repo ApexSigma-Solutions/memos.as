@@ -6,8 +6,6 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from qdrant_client.http.models import Distance, PointStruct, VectorParams
 
-from app.services.observability import get_observability
-
 
 class QdrantMemoryClient:
     """
@@ -20,8 +18,7 @@ class QdrantMemoryClient:
     """
 
     def __init__(self):
-        self.observability = get_observability()
-        self.host = os.environ.get("QDRANT_HOST", "devenviro_qdrant")
+        self.host = os.environ.get("QDRANT_HOST", "localhost")
         self.port = int(os.environ.get("QDRANT_PORT", 6333))
         self.collection_name = "memories"
 
@@ -52,23 +49,15 @@ class QdrantMemoryClient:
                         size=embedding_size, distance=Distance.COSINE
                     ),
                 )
-                self.observability.log_structured(
-                    "info",
-                    "Qdrant collection created",
-                    collection_name=self.collection_name,
-                    embedding_size=embedding_size,
+                print(
+                    f"Created Qdrant collection '{self.collection_name}' "
+                    f"with {embedding_size} dimensions"
                 )
             else:
-                self.observability.log_structured(
-                    "info",
-                    "Qdrant collection already exists",
-                    collection_name=self.collection_name,
-                )
+                print(f"Qdrant collection '{self.collection_name}' already exists")
 
         except Exception as e:
-            self.observability.log_structured(
-                "error", "Error ensuring Qdrant collection exists", error=str(e)
-            )
+            print(f"Error ensuring collection exists: {e}")
 
     def store_embedding(
         self,
@@ -78,6 +67,14 @@ class QdrantMemoryClient:
     ) -> Optional[str]:
         """
         Store a vector embedding with reference to PostgreSQL memory ID.
+
+        Args:
+            embedding: Vector embedding of the memory content
+            memory_id: PostgreSQL memory ID for linking
+            metadata: Optional metadata to store with the vector
+
+        Returns:
+            Qdrant point ID if successful, None if failed
         """
         try:
             # Generate unique point ID
@@ -91,14 +88,11 @@ class QdrantMemoryClient:
 
             # Store in Qdrant
             self.client.upsert(collection_name=self.collection_name, points=[point])
-            self.observability.record_memory_operation("qdrant_store", "success", "tier2")
+
             return point_id
 
         except Exception as e:
-            self.observability.record_memory_operation("qdrant_store", "failed", "tier2")
-            self.observability.log_structured(
-                "error", "Error storing embedding in Qdrant", error=str(e)
-            )
+            print(f"Error storing embedding: {e}")
             return None
 
     def search_similar_memories(
@@ -106,6 +100,14 @@ class QdrantMemoryClient:
     ) -> List[Dict[str, Any]]:
         """
         Perform semantic search to find similar memories.
+
+        Args:
+            query_embedding: Vector embedding of the query
+            top_k: Number of similar memories to return
+            score_threshold: Minimum similarity score threshold
+
+        Returns:
+            List of search results with memory_ids and scores
         """
         try:
             search_result = self.client.search(
@@ -126,14 +128,11 @@ class QdrantMemoryClient:
                         "metadata": hit.payload.get("metadata", {}),
                     }
                 )
-            self.observability.record_memory_operation("qdrant_search", "success", "tier2")
+
             return results
 
         except Exception as e:
-            self.observability.record_memory_operation("qdrant_search", "failed", "tier2")
-            self.observability.log_structured(
-                "error", "Error searching similar memories in Qdrant", error=str(e)
-            )
+            print(f"Error searching similar memories: {e}")
             return []
 
     def get_embedding_by_memory_id(self, memory_id: int) -> Optional[Dict[str, Any]]:
@@ -166,9 +165,7 @@ class QdrantMemoryClient:
             return None
 
         except Exception as e:
-            self.observability.log_structured(
-                "error", "Error getting embedding by memory ID from Qdrant", error=str(e)
-            )
+            print(f"Error getting embedding by memory ID: {e}")
             return None
 
     def delete_embedding(self, point_id: str) -> bool:
@@ -178,14 +175,10 @@ class QdrantMemoryClient:
                 collection_name=self.collection_name,
                 points_selector=models.PointIdsList(points=[point_id]),
             )
-            self.observability.record_memory_operation("qdrant_delete", "success", "tier2")
             return True
 
         except Exception as e:
-            self.observability.record_memory_operation("qdrant_delete", "failed", "tier2")
-            self.observability.log_structured(
-                "error", "Error deleting embedding from Qdrant", error=str(e)
-            )
+            print(f"Error deleting embedding: {e}")
             return False
 
     def delete_embedding_by_memory_id(self, memory_id: int) -> bool:
@@ -204,14 +197,10 @@ class QdrantMemoryClient:
                     )
                 ),
             )
-            self.observability.record_memory_operation("qdrant_delete_by_memory_id", "success", "tier2")
             return True
 
         except Exception as e:
-            self.observability.record_memory_operation("qdrant_delete_by_memory_id", "failed", "tier2")
-            self.observability.log_structured(
-                "error", "Error deleting embedding by memory ID from Qdrant", error=str(e)
-            )
+            print(f"Error deleting embedding by memory ID: {e}")
             return False
 
     def get_collection_info(self) -> Optional[Dict[str, Any]]:
@@ -231,14 +220,14 @@ class QdrantMemoryClient:
             }
 
         except Exception as e:
-            self.observability.log_structured(
-                "error", "Error getting collection info from Qdrant", error=str(e)
-            )
+            print(f"Error getting collection info: {e}")
             return None
 
     def generate_placeholder_embedding(self, text: str) -> List[float]:
         """
         Placeholder embedding function for development.
+        In production, this should be replaced with actual embedding generation
+        using models like sentence-transformers, OpenAI embeddings, etc.
         """
         # Simple hash-based placeholder (deterministic for testing)
         import hashlib

@@ -8,8 +8,6 @@ from sqlalchemy import (JSON, Column, DateTime, Integer, String, Text,
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.services.observability import get_observability
-
 Base = declarative_base()
 
 
@@ -21,7 +19,7 @@ class Memory(Base):
 
     __tablename__ = "memories"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(Text, nullable=False)
     memory_metadata = Column(
         JSON, nullable=True
@@ -39,7 +37,7 @@ class RegisteredTool(Base):
 
     __tablename__ = "registered_tools"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=False)
     usage = Column(Text, nullable=False)
@@ -59,7 +57,6 @@ class PostgresClient:
     """
 
     def __init__(self):
-        self.observability = get_observability()
         self.host = os.environ.get("POSTGRES_HOST", "localhost")
         self.port = int(os.environ.get("POSTGRES_PORT", 5432))
         self.database = os.environ.get("POSTGRES_DB", "memos_db")
@@ -86,8 +83,7 @@ class PostgresClient:
         try:
             yield session
             session.commit()
-        except Exception as e:
-            self.observability.log_structured("error", "PostgreSQL session error", error=str(e))
+        except Exception:
             session.rollback()
             raise
         finally:
@@ -102,6 +98,14 @@ class PostgresClient:
     ) -> Optional[int]:
         """
         Store a new memory entry.
+
+        Args:
+            content: The memory content to store
+            metadata: Optional metadata dictionary
+            embedding_id: Optional reference to Qdrant vector ID
+
+        Returns:
+            Memory ID if successful, None if failed
         """
         try:
             with self.get_session() as session:
@@ -109,12 +113,19 @@ class PostgresClient:
                     content=content, memory_metadata=metadata, embedding_id=embedding_id
                 )
                 session.add(memory)
-                session.flush()
-                self.observability.record_memory_operation("postgres_store", "success", "tier2")
-                return memory.id
+                session.flush()  # Flush to get the ID but don't commit yet
+                memory_id = memory.id
+
+                if memory_id is None:
+                    print("⚠️  Memory ID is None after flush - database issue")
+                    return None
+
+                print(f"✅ Successfully stored memory with ID: {memory_id}")
+                return memory_id
         except Exception as e:
-            self.observability.record_memory_operation("postgres_store", "failed", "tier2")
-            self.observability.log_structured("error", "Error storing memory in PostgreSQL", error=str(e))
+            print(f"❌ Error storing memory in PostgreSQL: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def get_memory(self, memory_id: int) -> Optional[Dict[str, Any]]:
@@ -133,7 +144,7 @@ class PostgresClient:
                     }
                 return None
         except Exception as e:
-            self.observability.log_structured("error", "Error retrieving memory from PostgreSQL", error=str(e))
+            print(f"Error retrieving memory: {e}")
             return None
 
     def get_memories_by_ids(self, memory_ids: List[int]) -> List[Dict[str, Any]]:
@@ -153,7 +164,7 @@ class PostgresClient:
                     for memory in memories
                 ]
         except Exception as e:
-            self.observability.log_structured("error", "Error retrieving memories from PostgreSQL", error=str(e))
+            print(f"Error retrieving memories: {e}")
             return []
 
     def update_memory_embedding_id(self, memory_id: int, embedding_id: str) -> bool:
@@ -167,7 +178,7 @@ class PostgresClient:
                     return True
                 return False
         except Exception as e:
-            self.observability.log_structured("error", "Error updating memory embedding ID in PostgreSQL", error=str(e))
+            print(f"Error updating memory embedding ID: {e}")
             return False
 
     # Tool Registry Management (for tool discovery)
@@ -176,6 +187,15 @@ class PostgresClient:
     ) -> Optional[int]:
         """
         Register a new tool in the registry.
+
+        Args:
+            name: Tool name (must be unique)
+            description: Tool description
+            usage: How to use the tool
+            tags: Optional list of tags for categorization
+
+        Returns:
+            Tool ID if successful, None if failed
         """
         try:
             with self.get_session() as session:
@@ -184,10 +204,9 @@ class PostgresClient:
                 )
                 session.add(tool)
                 session.flush()
-                self.observability.log_structured("info", "Tool registered in PostgreSQL", tool_name=name)
                 return tool.id
         except Exception as e:
-            self.observability.log_structured("error", "Error registering tool in PostgreSQL", error=str(e))
+            print(f"Error registering tool: {e}")
             return None
 
     def get_tool(self, tool_id: int) -> Optional[Dict[str, Any]]:
@@ -211,7 +230,7 @@ class PostgresClient:
                     }
                 return None
         except Exception as e:
-            self.observability.log_structured("error", "Error retrieving tool from PostgreSQL", error=str(e))
+            print(f"Error retrieving tool: {e}")
             return None
 
     def get_tools_by_context(
@@ -219,6 +238,7 @@ class PostgresClient:
     ) -> List[Dict[str, Any]]:
         """
         Get tools that match a query context (for tool discovery).
+        This is a simple implementation - can be enhanced with better matching logic.
         """
         try:
             with self.get_session() as session:
@@ -246,7 +266,7 @@ class PostgresClient:
                     for tool in tools
                 ]
         except Exception as e:
-            self.observability.log_structured("error", "Error retrieving tools by context from PostgreSQL", error=str(e))
+            print(f"Error retrieving tools by context: {e}")
             return []
 
     def get_all_tools(self) -> List[Dict[str, Any]]:
@@ -267,7 +287,7 @@ class PostgresClient:
                     for tool in tools
                 ]
         except Exception as e:
-            self.observability.log_structured("error", "Error retrieving all tools from PostgreSQL", error=str(e))
+            print(f"Error retrieving all tools: {e}")
             return []
 
 
