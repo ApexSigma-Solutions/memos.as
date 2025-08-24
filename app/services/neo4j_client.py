@@ -33,19 +33,40 @@ class Neo4jClient:
         self._create_constraints()
 
     def _connect(self):
-        """Establish connection to Neo4j database."""
-        try:
-            self.driver = GraphDatabase.driver(
-                self.uri,
-                auth=(self.username, self.password)
-            )
-            # Test connection
-            with self.driver.session() as session:
-                session.run("RETURN 1")
-            print(f"Connected to Neo4j at {self.uri}")
-        except Exception as e:
-            print(f"Failed to connect to Neo4j: {e}")
-            self.driver = None
+        """Establish connection to Neo4j database with retry logic."""
+        import time
+
+        max_retries = 5
+        retry_delay = 2
+
+        for attempt in range(max_retries):
+            try:
+                self.driver = GraphDatabase.driver(
+                    self.uri,
+                    auth=(self.username, self.password),
+                    connection_timeout=10,  # 10 second timeout
+                )
+                # Test connection
+                with self.driver.session() as session:
+                    session.run("RETURN 1")
+                print(f"✅ Connected to Neo4j at {self.uri}")
+                return
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(
+                        f"⚠️  Neo4j connection attempt {attempt + 1}/{max_retries} failed: {e}"
+                    )
+                    print(f"   Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    print(
+                        f"❌ Failed to connect to Neo4j after {max_retries} attempts: {e}"
+                    )
+                    print(
+                        "💡 Ensure Neo4j is running: docker-compose up -d neo4j"
+                    )
+                    self.driver = None
 
     def _create_constraints(self):
         """Create uniqueness constraints for core node types."""
@@ -56,7 +77,7 @@ class Neo4jClient:
             "CREATE CONSTRAINT memory_id_unique IF NOT EXISTS FOR (m:Memory) REQUIRE m.id IS UNIQUE",
             "CREATE CONSTRAINT tool_name_unique IF NOT EXISTS FOR (t:Tool) REQUIRE t.name IS UNIQUE",
             "CREATE CONSTRAINT concept_name_unique IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE",
-            "CREATE CONSTRAINT agent_name_unique IF NOT EXISTS FOR (a:Agent) REQUIRE a.name IS UNIQUE"
+            "CREATE CONSTRAINT agent_name_unique IF NOT EXISTS FOR (a:Agent) REQUIRE a.name IS UNIQUE",
         ]
 
         with self.driver.session() as session:
@@ -86,7 +107,9 @@ class Neo4jClient:
 
     # Node Creation Methods
 
-    def create_memory_node(self, memory_id: int, content: str, concepts: List[str] = None) -> Dict:
+    def create_memory_node(
+        self, memory_id: int, content: str, concepts: List[str] = None
+    ) -> Dict:
         """Create a Memory node and link it to extracted concepts."""
         concepts = concepts or []
 
@@ -103,7 +126,7 @@ class Neo4jClient:
                 RETURN m
                 """,
                 memory_id=memory_id,
-                content=content
+                content=content,
             )
 
             memory_node = result.single()["m"]
@@ -114,7 +137,9 @@ class Neo4jClient:
 
             return dict(memory_node)
 
-    def create_tool_node(self, name: str, description: str, usage: str, tags: List[str] = None) -> Dict:
+    def create_tool_node(
+        self, name: str, description: str, usage: str, tags: List[str] = None
+    ) -> Dict:
         """Create a Tool node."""
         tags = tags or []
 
@@ -131,7 +156,7 @@ class Neo4jClient:
                 name=name,
                 description=description,
                 usage=usage,
-                tags=tags
+                tags=tags,
             )
 
             return dict(result.single()["t"])
@@ -147,12 +172,14 @@ class Neo4jClient:
                 RETURN c
                 """,
                 name=name,
-                description=description
+                description=description,
             )
 
             return dict(result.single()["c"])
 
-    def create_agent_node(self, name: str, role: str = None, capabilities: List[str] = None) -> Dict:
+    def create_agent_node(
+        self, name: str, role: str = None, capabilities: List[str] = None
+    ) -> Dict:
         """Create an Agent node."""
         capabilities = capabilities or []
 
@@ -167,12 +194,14 @@ class Neo4jClient:
                 """,
                 name=name,
                 role=role,
-                capabilities=capabilities
+                capabilities=capabilities,
             )
 
             return dict(result.single()["a"])
 
-    def store_memory(self, memory_id: int, content: str, concepts: List[str] = None) -> Dict:
+    def store_memory(
+        self, memory_id: int, content: str, concepts: List[str] = None
+    ) -> Dict:
         """
         Store a new memory node in the knowledge graph.
         """
@@ -180,7 +209,9 @@ class Neo4jClient:
 
     # Relationship Creation Methods
 
-    def _create_concept_relationship(self, session: Session, memory_id: int, concept: str):
+    def _create_concept_relationship(
+        self, session: Session, memory_id: int, concept: str
+    ):
         """Create relationship between Memory and Concept."""
         session.run(
             """
@@ -191,10 +222,16 @@ class Neo4jClient:
             SET r.created_at = COALESCE(r.created_at, datetime())
             """,
             memory_id=memory_id,
-            concept=concept
+            concept=concept,
         )
 
-    def create_relationship(self, from_node: Dict, to_node: Dict, relationship_type: str, properties: Dict = None):
+    def create_relationship(
+        self,
+        from_node: Dict,
+        to_node: Dict,
+        relationship_type: str,
+        properties: Dict = None,
+    ):
         """Create a relationship between two nodes."""
         properties = properties or {}
 
@@ -216,14 +253,19 @@ class Neo4jClient:
                 query,
                 from_id=from_node.get("id"),
                 to_id=to_node.get("id"),
-                properties=properties
+                properties=properties,
             )
 
             return dict(result.single()["r"]) if result.peek() else None
 
     # Query Methods
 
-    def find_related_memories(self, memory_id: int, relationship_types: List[str] = None, limit: int = 10) -> List[Dict]:
+    def find_related_memories(
+        self,
+        memory_id: int,
+        relationship_types: List[str] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
         """Find memories related to the given memory through concepts."""
         relationship_types = relationship_types or ["MENTIONS"]
 
@@ -237,13 +279,20 @@ class Neo4jClient:
                 LIMIT $limit
                 """,
                 memory_id=memory_id,
-                limit=limit
+                limit=limit,
             )
 
-            return [{"memory": dict(record["m2"]), "shared_concepts": record["shared_concepts"]}
-                   for record in result]
+            return [
+                {
+                    "memory": dict(record["m2"]),
+                    "shared_concepts": record["shared_concepts"],
+                }
+                for record in result
+            ]
 
-    def find_tools_by_concept(self, concept: str, limit: int = 5) -> List[Dict]:
+    def find_tools_by_concept(
+        self, concept: str, limit: int = 5
+    ) -> List[Dict]:
         """Find tools related to a concept."""
         with self.get_session() as session:
             result = session.run(
@@ -254,11 +303,16 @@ class Neo4jClient:
                 LIMIT $limit
                 """,
                 concept=concept,
-                limit=limit
+                limit=limit,
             )
 
-            return [{"tool": dict(record["t"]), "usage_count": record["usage_count"]}
-                   for record in result]
+            return [
+                {
+                    "tool": dict(record["t"]),
+                    "usage_count": record["usage_count"],
+                }
+                for record in result
+            ]
 
     def get_concept_network(self, concept: str, depth: int = 2) -> Dict:
         """Get the network of related concepts."""
@@ -270,11 +324,10 @@ class Neo4jClient:
                 LIMIT 50
                 """,
                 concept=concept,
-                depth=depth
+                depth=depth,
             )
 
             return self._format_graph_output(result)
-
 
     def get_related_nodes(self, node_id: str) -> Dict:
         """Get all directly connected nodes and their relationships."""
@@ -285,7 +338,7 @@ class Neo4jClient:
                 MATCH (n)-[r]-(m)
                 RETURN n, r, m
                 """,
-                node_id=node_id
+                node_id=node_id,
             )
             return self._format_graph_output(result)
 
@@ -301,7 +354,7 @@ class Neo4jClient:
                 RETURN path
                 """,
                 start_node_id=start_node_id,
-                end_node_id=end_node_id
+                end_node_id=end_node_id,
             )
             return self._format_graph_output(result)
 
@@ -316,10 +369,9 @@ class Neo4jClient:
                 RETURN nodes, relationships
                 """,
                 node_id=node_id,
-                depth=depth
+                depth=depth,
             )
             return self._format_graph_output(result)
-
 
     def extract_concepts_from_content(self, content: str) -> List[str]:
         """Extract concepts from content using simple keyword extraction."""
@@ -338,7 +390,9 @@ class Neo4jClient:
         # Remove duplicates and return first 10
         return list(set(concepts))[:10]
 
-    def run_cypher_query(self, query: str, parameters: Dict = None) -> List[Dict]:
+    def run_cypher_query(
+        self, query: str, parameters: Dict = None
+    ) -> List[Dict]:
         """Execute a raw Cypher query."""
         parameters = parameters or {}
 
@@ -357,12 +411,14 @@ class Neo4jClient:
                 for node in path.nodes:
                     nodes.add((node.id, dict(node)))
                 for rel in path.relationships:
-                    relationships.append({
-                        "start": rel.start_node.id,
-                        "end": rel.end_node.id,
-                        "type": rel.type,
-                        "properties": dict(rel)
-                    })
+                    relationships.append(
+                        {
+                            "start": rel.start_node.id,
+                            "end": rel.end_node.id,
+                            "type": rel.type,
+                            "properties": dict(rel),
+                        }
+                    )
             else:
                 if "n" in record:
                     node_n = record["n"]
@@ -372,27 +428,33 @@ class Neo4jClient:
                     nodes.add((node_m.id, dict(node_m)))
                 if "r" in record:
                     rel = record["r"]
-                    relationships.append({
-                        "start": rel.start_node.id,
-                        "end": rel.end_node.id,
-                        "type": rel.type,
-                        "properties": dict(rel)
-                    })
+                    relationships.append(
+                        {
+                            "start": rel.start_node.id,
+                            "end": rel.end_node.id,
+                            "type": rel.type,
+                            "properties": dict(rel),
+                        }
+                    )
                 if "nodes" in record and "relationships" in record:
                     for node in record["nodes"]:
                         nodes.add((node.id, dict(node)))
                     for rel in record["relationships"]:
-                        relationships.append({
-                            "start": rel.start_node.id,
-                            "end": rel.end_node.id,
-                            "type": rel.type,
-                            "properties": dict(rel)
-                        })
-
+                        relationships.append(
+                            {
+                                "start": rel.start_node.id,
+                                "end": rel.end_node.id,
+                                "type": rel.type,
+                                "properties": dict(rel),
+                            }
+                        )
 
         return {
-            "nodes": [{"id": node_id, "properties": props} for node_id, props in nodes],
-            "relationships": relationships
+            "nodes": [
+                {"id": node_id, "properties": props}
+                for node_id, props in nodes
+            ],
+            "relationships": relationships,
         }
 
 

@@ -19,7 +19,7 @@ class Memory(Base):
 
     __tablename__ = "memories"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(Text, nullable=False)
     memory_metadata = Column(
         JSON, nullable=True
@@ -37,7 +37,7 @@ class RegisteredTool(Base):
 
     __tablename__ = "registered_tools"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=False)
     usage = Column(Text, nullable=False)
@@ -113,10 +113,19 @@ class PostgresClient:
                     content=content, memory_metadata=metadata, embedding_id=embedding_id
                 )
                 session.add(memory)
-                session.flush()
-                return memory.id
+                session.flush()  # Flush to get the ID but don't commit yet
+                memory_id = memory.id
+
+                if memory_id is None:
+                    print("⚠️  Memory ID is None after flush - database issue")
+                    return None
+
+                print(f"✅ Successfully stored memory with ID: {memory_id}")
+                return memory_id
         except Exception as e:
-            print(f"Error storing memory: {e}")
+            print(f"❌ Error storing memory in PostgreSQL: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def get_memory(self, memory_id: int) -> Optional[Dict[str, Any]]:

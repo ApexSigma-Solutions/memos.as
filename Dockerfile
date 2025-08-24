@@ -8,7 +8,7 @@ WORKDIR /code
 ENV PYTHONPATH=/code
 
 # Install curl
-RUN apt-get update && apt-get install -y curl
+RUN apt-get update && apt-get install -y curl nodejs npm
 
 # Copy the dependencies file to the working directory
 COPY requirements.txt .

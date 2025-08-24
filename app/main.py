@@ -1,14 +1,24 @@
 import os
+import logging
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.models import QueryRequest, StoreRequest, ToolRegistrationRequest, GraphQueryRequest
+from app.models import (
+    QueryRequest,
+    StoreRequest,
+    ToolRegistrationRequest,
+    GraphQueryRequest,
+)
 from app.services.postgres_client import PostgresClient, get_postgres_client
 from app.services.qdrant_client import QdrantMemoryClient, get_qdrant_client
 from app.services.redis_client import RedisClient, get_redis_client
 from app.services.neo4j_client import Neo4jClient, get_neo4j_client
-from app.services.observability import ObservabilityService, get_observability, trace_async
+from app.services.observability import (
+    ObservabilityService,
+    get_observability,
+    trace_async,
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -26,6 +36,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize logging
+logger = logging.getLogger(__name__)
+
 # Initialize observability
 obs = get_observability()
 obs.instrument_fastapi(app)
@@ -42,59 +55,162 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health_check(observability: ObservabilityService = Depends(get_observability)):
-    """Detailed health check with service status and observability metrics"""
+@app.get("/cache/stats")
+async def get_cache_stats(
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Get Redis cache statistics and performance metrics.
+    """
     try:
-        # Check PostgreSQL connection
-        get_postgres_client()
-        postgres_status = "connected"
-        observability.active_connections.labels(database="postgresql").set(1)
+        if not redis_client.is_connected():
+            return {
+                "error": "Redis not connected",
+                "connected": False,
+                "stats": None,
+            }
 
-        # Check Qdrant connection
-        qdrant_client = get_qdrant_client()
-        qdrant_info = qdrant_client.get_collection_info()
-        qdrant_status = "connected" if qdrant_info else "disconnected"
-        observability.active_connections.labels(database="qdrant").set(1 if qdrant_info else 0)
-
-        # Check Redis connection
-        get_redis_client()
-        redis_status = "connected"  # Basic check, can be enhanced
-        observability.active_connections.labels(database="redis").set(1)
-
-        # Log health check
-        observability.log_structured(
-            "info",
-            "Health check performed",
-            postgres_status=postgres_status,
-            qdrant_status=qdrant_status,
-            redis_status=redis_status
-        )
-
-        health_data = observability.health_check()
-        health_data.update({
-            "services": {
-                "postgres": postgres_status,
-                "qdrant": qdrant_status,
-                "redis": redis_status,
-            },
-            "qdrant_collection": qdrant_info,
-        })
-
-        return health_data
+        stats = redis_client.get_cache_stats()
+        return {
+            "connected": True,
+            "stats": stats,
+            "message": "Cache statistics retrieved successfully",
+        }
 
     except Exception as e:
-        observability.log_structured("error", "Health check failed", error=str(e))
+        logger.error(f"Error getting cache stats: {str(e)}")
         raise HTTPException(
-            status_code=503, detail=f"Service health check failed: {str(e)}"
+            status_code=500, detail=f"Error getting cache stats: {str(e)}"
         )
+
+
+@app.delete("/cache/clear")
+async def clear_cache(
+    pattern: str = "*",
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Clear cache entries matching the specified pattern.
+    Default pattern '*' clears all cache entries.
+    """
+    try:
+        if not redis_client.is_connected():
+            return {
+                "error": "Redis not connected",
+                "connected": False,
+                "cleared": 0,
+            }
+
+        cleared_count = redis_client.clear_cache_pattern(pattern)
+        return {
+            "connected": True,
+            "pattern": pattern,
+            "cleared": cleared_count,
+            "message": f"Cleared {cleared_count} cache entries",
+        }
+
+    except Exception as e:
+        logger.error(f"Error clearing cache: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error clearing cache: {str(e)}"
+        )
+
+
+@app.get("/health")
+async def health_check(
+    observability: ObservabilityService = Depends(get_observability),
+):
+    """Enhanced health check with graceful database error handling"""
+    health_data = observability.health_check()
+    services_status = {}
+
+    # Check PostgreSQL with graceful fallback
+    try:
+        postgres_client = get_postgres_client()
+        # Test with a simple query
+        with postgres_client.get_session() as session:
+            session.execute("SELECT 1")
+        services_status["postgres"] = "connected"
+        observability.active_connections.labels(database="postgresql").set(1)
+    except Exception as e:
+        services_status["postgres"] = f"disconnected: {str(e)[:100]}"
+        observability.active_connections.labels(database="postgresql").set(0)
+
+    # Check Qdrant with graceful fallback
+    try:
+        qdrant_client = get_qdrant_client()
+        qdrant_info = qdrant_client.get_collection_info()
+        services_status["qdrant"] = (
+            "connected" if qdrant_info else "disconnected"
+        )
+        observability.active_connections.labels(database="qdrant").set(
+            1 if qdrant_info else 0
+        )
+    except Exception as e:
+        services_status["qdrant"] = f"disconnected: {str(e)[:100]}"
+        qdrant_info = None
+        observability.active_connections.labels(database="qdrant").set(0)
+
+    # Check Redis with graceful fallback
+    try:
+        redis_client = get_redis_client()
+        redis_client.client.ping()
+        services_status["redis"] = "connected"
+        observability.active_connections.labels(database="redis").set(1)
+    except Exception as e:
+        services_status["redis"] = f"disconnected: {str(e)[:100]}"
+        observability.active_connections.labels(database="redis").set(0)
+
+    # Check Neo4j with graceful fallback
+    try:
+        neo4j_client = get_neo4j_client()
+        if neo4j_client.driver:
+            with neo4j_client.get_session() as session:
+                session.run("RETURN 1")
+            services_status["neo4j"] = "connected"
+        else:
+            services_status["neo4j"] = "disconnected: driver not initialized"
+    except Exception as e:
+        services_status["neo4j"] = f"disconnected: {str(e)[:100]}"
+
+    # Log health check with detailed status
+    observability.log_structured(
+        "info",
+        "Health check performed",
+        **{f"{db}_status": status for db, status in services_status.items()},
+    )
+
+    # Determine if integration is ready (PostgreSQL is critical)
+    integration_ready = "connected" in services_status.get("postgres", "")
+
+    health_data.update(
+        {
+            "services": services_status,
+            "integration_ready": integration_ready,
+            "qdrant_collection": qdrant_info
+            if "qdrant_info" in locals()
+            else None,
+            "operational_mode": "full"
+            if all(
+                "connected" in status for status in services_status.values()
+            )
+            else "degraded",
+        }
+    )
+
+    return health_data
 
 
 @app.get("/metrics")
-async def get_metrics(observability: ObservabilityService = Depends(get_observability)):
+async def get_metrics(
+    observability: ObservabilityService = Depends(get_observability),
+):
     """Prometheus metrics endpoint for DevEnviro monitoring stack."""
     from fastapi.responses import PlainTextResponse
-    return PlainTextResponse(observability.get_metrics(), media_type="text/plain")
+
+    return PlainTextResponse(
+        observability.get_metrics(), media_type="text/plain"
+    )
 
 
 # Tool Management Endpoints
@@ -102,6 +218,7 @@ async def get_metrics(observability: ObservabilityService = Depends(get_observab
 async def register_tool(
     tool_request: ToolRegistrationRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
+    redis_client: RedisClient = Depends(get_redis_client),
 ):
     """
     Register a new tool in the PostgreSQL registered_tools table.
@@ -123,6 +240,10 @@ async def register_tool(
                 detail="Failed to register tool. Tool name might already exist.",
             )
 
+        # Invalidate tool caches after successful registration
+        if redis_client.is_connected():
+            redis_client.invalidate_tool_caches()
+
         return {
             "success": True,
             "tool_id": tool_id,
@@ -130,12 +251,15 @@ async def register_tool(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error registering tool: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error registering tool: {str(e)}"
+        )
 
 
 @app.get("/tools/{tool_id}")
 async def get_tool(
-    tool_id: int, postgres_client: PostgresClient = Depends(get_postgres_client)
+    tool_id: int,
+    postgres_client: PostgresClient = Depends(get_postgres_client),
 ):
     """Get a specific tool by ID"""
     try:
@@ -149,18 +273,24 @@ async def get_tool(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving tool: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving tool: {str(e)}"
+        )
 
 
 @app.get("/tools")
-async def get_all_tools(postgres_client: PostgresClient = Depends(get_postgres_client)):
+async def get_all_tools(
+    postgres_client: PostgresClient = Depends(get_postgres_client),
+):
     """Get all registered tools"""
     try:
         tools = postgres_client.get_all_tools()
         return {"tools": tools, "count": len(tools)}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving tools: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving tools: {str(e)}"
+        )
 
 
 @app.get("/tools/search")
@@ -175,7 +305,9 @@ async def search_tools(
         return {"tools": tools, "count": len(tools), "query": query}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching tools: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error searching tools: {str(e)}"
+        )
 
 
 # Memory Management Endpoints
@@ -185,6 +317,7 @@ async def store_memory(
     store_request: StoreRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
     qdrant_client: QdrantMemoryClient = Depends(get_qdrant_client),
+    redis_client: RedisClient = Depends(get_redis_client),
     neo4j_client: Neo4jClient = Depends(get_neo4j_client),
     observability: ObservabilityService = Depends(get_observability),
 ):
@@ -199,12 +332,41 @@ async def store_memory(
     5. Return the PostgreSQL ID and knowledge graph information
     """
     try:
+        # Debug: verify dependency types
+        try:
+            observability.log_structured(
+                "info",
+                "store_memory dependency types",
+                postgres_client_type=str(type(postgres_client)),
+                qdrant_client_type=str(type(qdrant_client)),
+                redis_client_type=str(type(redis_client)),
+                neo4j_client_type=str(type(neo4j_client)),
+            )
+        except Exception:
+            pass
         import time
+
         start_time = time.time()
 
-        # Step 1: Generate an embedding for the content
-        embedding = qdrant_client.generate_placeholder_embedding(store_request.content)
-        observability.record_memory_operation("embedding_generation", "success")
+        # Step 1: Generate an embedding for the content (with caching)
+        # First check if we have cached embedding for this content
+        cached_embedding = redis_client.get_cached_embedding(
+            store_request.content
+        )
+        if cached_embedding:
+            embedding = cached_embedding
+            observability.record_memory_operation(
+                "embedding_cache_hit", "success"
+            )
+        else:
+            embedding = qdrant_client.generate_placeholder_embedding(
+                store_request.content
+            )
+            # Cache the generated embedding
+            redis_client.cache_embedding(store_request.content, embedding)
+            observability.record_memory_operation(
+                "embedding_generation", "success"
+            )
 
         # Step 2: Store the full content/metadata in PostgreSQL to get a unique ID
         postgres_start = time.time()
@@ -214,33 +376,55 @@ async def store_memory(
         postgres_duration = time.time() - postgres_start
 
         if memory_id is None:
-            observability.record_memory_operation("postgres_store", "failed", "tier2", postgres_duration)
+            observability.record_memory_operation(
+                "postgres_store", "failed", "tier2", postgres_duration
+            )
             raise HTTPException(
                 status_code=500, detail="Failed to store memory in PostgreSQL"
             )
 
-        observability.record_memory_operation("postgres_store", "success", "tier2", postgres_duration)
-
-        # Step 3: Store the vector embedding and the PostgreSQL ID in Qdrant
-        qdrant_start = time.time()
-        point_id = qdrant_client.store_embedding(
-            embedding=embedding, memory_id=memory_id, metadata=store_request.metadata
+        observability.record_memory_operation(
+            "postgres_store", "success", "tier2", postgres_duration
         )
-        qdrant_duration = time.time() - qdrant_start
 
-        if point_id is None:
-            observability.record_memory_operation("qdrant_store", "failed", "tier2", qdrant_duration)
-            # Rollback: delete the PostgreSQL record if Qdrant storage fails
-            # Note: In a production system, this should be handled with
-            # proper transactions
-            raise HTTPException(
-                status_code=500, detail="Failed to store embedding in Qdrant"
+        # Step 3: Store the vector embedding and the PostgreSQL ID in Qdrant (with graceful fallback)
+        point_id = None
+        qdrant_success = False
+
+        try:
+            qdrant_start = time.time()
+            point_id = qdrant_client.store_embedding(
+                embedding=embedding,
+                memory_id=memory_id,
+                metadata=store_request.metadata,
             )
+            qdrant_duration = time.time() - qdrant_start
 
-        observability.record_memory_operation("qdrant_store", "success", "tier2", qdrant_duration)
+            if point_id is not None:
+                observability.record_memory_operation(
+                    "qdrant_store", "success", "tier2", qdrant_duration
+                )
+                # Update PostgreSQL record with the Qdrant point ID for linking
+                postgres_client.update_memory_embedding_id(memory_id, point_id)
+                qdrant_success = True
+            else:
+                observability.record_memory_operation(
+                    "qdrant_store", "failed", "tier2", qdrant_duration
+                )
 
-        # Update PostgreSQL record with the Qdrant point ID for linking
-        postgres_client.update_memory_embedding_id(memory_id, point_id)
+        except Exception as e:
+            qdrant_duration = (
+                time.time() - qdrant_start if "qdrant_start" in locals() else 0
+            )
+            observability.record_memory_operation(
+                "qdrant_store", "failed", "tier2", qdrant_duration
+            )
+            observability.log_structured(
+                "warning",
+                "Qdrant storage failed, continuing with degraded functionality",
+                memory_id=memory_id,
+                error=str(e),
+            )
 
         # Step 4: Extract concepts and update Neo4j knowledge graph
         concepts = []
@@ -250,26 +434,34 @@ async def store_memory(
                 neo4j_start = time.time()
 
                 # Extract concepts from content
-                concepts = neo4j_client.extract_concepts_from_content(store_request.content)
+                concepts = neo4j_client.extract_concepts_from_content(
+                    store_request.content
+                )
                 observability.record_concepts_extracted(len(concepts))
 
                 # Create memory node in Neo4j knowledge graph
                 memory_node = neo4j_client.create_memory_node(
                     memory_id=memory_id,
                     content=store_request.content,
-                    concepts=concepts
+                    concepts=concepts,
                 )
 
                 neo4j_duration = time.time() - neo4j_start
-                observability.record_memory_operation("neo4j_store", "success", "tier3", neo4j_duration)
-                observability.record_knowledge_graph_operation("create_memory_node", "Memory")
+                observability.record_memory_operation(
+                    "neo4j_store", "success", "tier3", neo4j_duration
+                )
+                observability.record_knowledge_graph_operation(
+                    "create_memory_node", "Memory"
+                )
                 for concept in concepts:
-                    observability.record_knowledge_graph_operation("create_concept_node", "Concept")
+                    observability.record_knowledge_graph_operation(
+                        "create_concept_node", "Concept"
+                    )
 
                 neo4j_info = {
                     "concepts_extracted": len(concepts),
                     "concepts": concepts,
-                    "memory_node_created": True
+                    "memory_node_created": True,
                 }
 
                 # Log successful knowledge graph update
@@ -278,38 +470,70 @@ async def store_memory(
                     "Knowledge graph updated",
                     memory_id=memory_id,
                     concepts_count=len(concepts),
-                    duration=neo4j_duration
+                    duration=neo4j_duration,
                 )
 
         except Exception as e:
             # Neo4j integration failure shouldn't break the main storage flow
-            observability.record_memory_operation("neo4j_store", "failed", "tier3")
+            observability.record_memory_operation(
+                "neo4j_store", "failed", "tier3"
+            )
             observability.log_structured(
                 "warning",
                 "Neo4j integration failed",
                 memory_id=memory_id,
-                error=str(e)
+                error=str(e),
             )
             neo4j_info = {
                 "concepts_extracted": 0,
                 "concepts": [],
                 "memory_node_created": False,
-                "error": str(e)
+                "error": str(e),
             }
 
-        # Step 5: Return comprehensive storage information
+        # Step 5: Invalidate related caches after successful storage
+        if redis_client.is_connected():
+            try:
+                redis_client.invalidate_memory_caches(memory_id)
+                observability.log_structured(
+                    "info", "Memory caches invalidated", memory_id=memory_id
+                )
+            except Exception as e:
+                observability.log_structured(
+                    "warning",
+                    "Failed to invalidate memory caches",
+                    memory_id=memory_id,
+                    error=str(e),
+                )
+
+        # Step 6: Return comprehensive storage information with degraded mode indicators
+        storage_status = {
+            "postgres": True,  # Always true if we reach this point
+            "qdrant": qdrant_success,
+            "neo4j": neo4j_info.get("memory_node_created", False),
+        }
+
+        operational_mode = (
+            "full" if all(storage_status.values()) else "degraded"
+        )
+
         return {
             "success": True,
             "memory_id": memory_id,
             "point_id": point_id,
             "knowledge_graph": neo4j_info,
-            "message": "Memory stored successfully with knowledge graph integration",
+            "storage_status": storage_status,
+            "operational_mode": operational_mode,
+            "message": f"Memory stored successfully in {operational_mode} mode",
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error storing memory: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error storing memory: {str(e)}"
+        )
+
 
 @app.post("/memory/{tier}/store")
 @trace_async("memory.store_by_tier")
@@ -330,16 +554,46 @@ async def store_memory_by_tier(
         try:
             # For Redis, we need a key. We can use a hash of the content as the key.
             import hashlib
+
             key = hashlib.md5(store_request.content.encode()).hexdigest()
             redis_client.store_memory(key, store_request.dict())
-            observability.record_memory_operation("redis_store", "success", "tier1")
-            return {"success": True, "tier": 1, "key": key, "message": "Memory stored in Redis"}
+            observability.record_memory_operation(
+                "redis_store", "success", "tier1"
+            )
+            return {
+                "success": True,
+                "tier": 1,
+                "memory_id": key,
+                "message": "Memory stored in Redis",
+            }
         except Exception as e:
-            observability.record_memory_operation("redis_store", "failed", "tier1")
-            raise HTTPException(status_code=500, detail=f"Error storing memory in Redis: {str(e)}")
+            observability.record_memory_operation(
+                "redis_store", "failed", "tier1"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error storing memory in Redis: {str(e)}",
+            )
     elif tier == "2":
         # Tier 2: PostgreSQL & Qdrant (Episodic & Procedural Memory)
-        return await store_memory(store_request, postgres_client, qdrant_client, neo4j_client, observability)
+        result = await store_memory(
+            store_request,
+            postgres_client=postgres_client,
+            qdrant_client=qdrant_client,
+            redis_client=redis_client,
+            neo4j_client=neo4j_client,
+            observability=observability,
+        )
+        # Ensure memory_id and tier are included in the response
+        if isinstance(result, dict):
+            if "memory_id" not in result and "postgres" in result:
+                try:
+                    result["memory_id"] = result["postgres"].get("memory_id")
+                except Exception:
+                    pass
+            # Include tier information for client compatibility
+            result.setdefault("tier", 2)
+        return result
     elif tier == "3":
         # Tier 3: Neo4j (Semantic Memory)
         try:
@@ -348,23 +602,78 @@ async def store_memory_by_tier(
                 content=store_request.content, metadata=store_request.metadata
             )
             if not memory_id:
-                raise HTTPException(status_code=500, detail="Failed to store memory in PostgreSQL")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to store memory in PostgreSQL",
+                )
+            # Then, attempt to store in Neo4j with the new ID
+            neo4j_info = {
+                "memory_node_created": False,
+                "concepts_extracted": 0,
+                "concepts": [],
+            }
+            try:
+                if neo4j_client.driver:
+                    concepts = neo4j_client.extract_concepts_from_content(
+                        store_request.content
+                    )
+                    memory_node = neo4j_client.store_memory(
+                        memory_id, store_request.content, concepts
+                    )
+                    observability.record_memory_operation(
+                        "neo4j_store", "success", "tier3"
+                    )
+                    neo4j_info.update(
+                        {
+                            "memory_node_created": True,
+                            "concepts_extracted": len(concepts),
+                            "concepts": concepts,
+                            "node": memory_node,
+                        }
+                    )
+                else:
+                    observability.record_memory_operation(
+                        "neo4j_store", "failed", "tier3"
+                    )
+                    neo4j_info["error"] = "Neo4j driver not initialized"
+            except Exception as e:
+                # Degrade gracefully if Neo4j fails
+                observability.record_memory_operation(
+                    "neo4j_store", "failed", "tier3"
+                )
+                neo4j_info["error"] = str(e)
 
-            # Then, store in Neo4j with the new ID
-            concepts = neo4j_client.extract_concepts_from_content(store_request.content)
-            memory_node = neo4j_client.store_memory(memory_id, store_request.content, concepts)
-            observability.record_memory_operation("neo4j_store", "success", "tier3")
-            return {"success": True, "tier": 3, "node": memory_node, "message": "Memory stored in Neo4j"}
+            # Return success with degraded mode info if needed
+            operational_mode = (
+                "full" if neo4j_info.get("memory_node_created") else "degraded"
+            )
+            return {
+                "success": True,
+                "tier": 3,
+                "memory_id": memory_id,
+                "knowledge_graph": neo4j_info,
+                "operational_mode": operational_mode,
+                "message": f"Memory stored in {operational_mode} mode",
+            }
         except Exception as e:
-            observability.record_memory_operation("neo4j_store", "failed", "tier3")
-            raise HTTPException(status_code=500, detail=f"Error storing memory in Neo4j: {str(e)}")
+            observability.record_memory_operation(
+                "neo4j_store", "failed", "tier3"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error storing memory in Neo4j: {str(e)}",
+            )
     else:
-        raise HTTPException(status_code=400, detail="Invalid memory tier specified. Use 1, 2, or 3.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid memory tier specified. Use 1, 2, or 3.",
+        )
 
 
 @app.get("/memory/{memory_id}")
 async def get_memory(
-    memory_id: int, postgres_client: PostgresClient = Depends(get_postgres_client)
+    memory_id: int,
+    postgres_client: PostgresClient = Depends(get_postgres_client),
 ):
     """Get a specific memory by ID"""
     try:
@@ -388,6 +697,7 @@ async def query_memory(
     query_request: QueryRequest,
     postgres_client: PostgresClient = Depends(get_postgres_client),
     qdrant_client: QdrantMemoryClient = Depends(get_qdrant_client),
+    redis_client: RedisClient = Depends(get_redis_client),
 ):
     """
     Query memories using semantic search and tool discovery.
@@ -400,10 +710,36 @@ async def query_memory(
     5. Return a combined response of relevant memories and tools
     """
     try:
-        # Step 1: Generate an embedding for the query text
-        query_embedding = qdrant_client.generate_placeholder_embedding(
+        # Step 0: Check for cached query results
+        if redis_client.is_connected():
+            cached_results = redis_client.get_cached_query_result(
+                query_request.query, query_request.top_k
+            )
+            if cached_results:
+                # Return cached results with cache indicator
+                return {
+                    "query": query_request.query,
+                    "top_k": query_request.top_k,
+                    "memories": cached_results,
+                    "tools": [],  # Tools not cached in this implementation
+                    "memory_count": len(cached_results),
+                    "tool_count": 0,
+                    "cached": True,
+                    "message": "Results retrieved from cache",
+                }
+
+        # Step 1: Generate an embedding for the query text (with caching)
+        cached_embedding = redis_client.get_cached_embedding(
             query_request.query
         )
+        if cached_embedding:
+            query_embedding = cached_embedding
+        else:
+            query_embedding = qdrant_client.generate_placeholder_embedding(
+                query_request.query
+            )
+            # Cache the generated embedding
+            redis_client.cache_embedding(query_request.query, query_embedding)
 
         # Step 2: Perform a semantic search in Qdrant to get relevant memory IDs
         search_results = qdrant_client.search_similar_memories(
@@ -414,7 +750,9 @@ async def query_memory(
 
         # Extract memory IDs from search results
         memory_ids = [
-            result["memory_id"] for result in search_results if result["memory_id"]
+            result["memory_id"]
+            for result in search_results
+            if result["memory_id"]
         ]
 
         # Step 3: Query PostgreSQL for tools that match the query context
@@ -431,15 +769,26 @@ async def query_memory(
 
             # Enrich memories with similarity scores from Qdrant
             memory_scores = {
-                result["memory_id"]: result["score"] for result in search_results
+                result["memory_id"]: result["score"]
+                for result in search_results
             }
             for memory in memories:
-                memory["similarity_score"] = memory_scores.get(memory["id"], 0.0)
+                memory["similarity_score"] = memory_scores.get(
+                    memory["id"], 0.0
+                )
 
             # Sort memories by similarity score (highest first)
-            memories.sort(key=lambda x: x.get("similarity_score", 0.0), reverse=True)
+            memories.sort(
+                key=lambda x: x.get("similarity_score", 0.0), reverse=True
+            )
 
-        # Step 5: Return a combined response of relevant memories and tools
+        # Step 6: Cache query results in Redis for future requests
+        if redis_client.is_connected() and memories:
+            redis_client.cache_query_result(
+                query_request.query, memories, query_request.top_k
+            )
+
+        # Step 7: Return combined response of relevant memories and tools
         response = {
             "query": query_request.query,
             "memories": {"count": len(memories), "results": memories},
@@ -449,12 +798,15 @@ async def query_memory(
                 "memory_ids_found": memory_ids,
                 "top_k_requested": query_request.top_k,
             },
+            "cached": False,
         }
 
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying memory: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error querying memory: {str(e)}"
+        )
 
 
 @app.get("/memory/search")
@@ -470,18 +822,21 @@ async def search_memories(
     try:
         # Create QueryRequest object and use the main query logic
         query_request = QueryRequest(query=query, top_k=top_k)
-        return await query_memory(query_request, postgres_client, qdrant_client)
+        return await query_memory(
+            query_request, postgres_client, qdrant_client
+        )
 
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error searching memories: {str(e)}"
         )
 
+
 # Graph Query Endpoint
 @app.post("/graph/query")
 async def query_graph(
     query_request: GraphQueryRequest,
-    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
 ):
     """
     Query the Neo4j knowledge graph.
@@ -491,10 +846,14 @@ async def query_graph(
         query = f"MATCH (n:{query_request.node_label})"
         if query_request.filters:
             query += " WHERE "
-            query += " AND ".join([f"n.{key} = ${key}" for key in query_request.filters.keys()])
+            query += " AND ".join(
+                [f"n.{key} = ${key}" for key in query_request.filters.keys()]
+            )
 
         if query_request.return_properties:
-            query += f" RETURN n.{', n.'.join(query_request.return_properties)}"
+            query += (
+                f" RETURN n.{', n.'.join(query_request.return_properties)}"
+            )
         else:
             query += " RETURN n"
 
@@ -504,45 +863,55 @@ async def query_graph(
         return {"result": result}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying graph: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error querying graph: {str(e)}"
+        )
+
 
 @app.get("/graph/related")
 async def get_related(
-    node_id: str,
-    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+    node_id: str, neo4j_client: Neo4jClient = Depends(get_neo4j_client)
 ):
     """Get all directly connected nodes and their relationships."""
     try:
         result = neo4j_client.get_related_nodes(node_id)
         return {"result": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting related nodes: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting related nodes: {str(e)}"
+        )
+
 
 @app.get("/graph/shortest-path")
 async def get_shortest_path(
     start_node_id: str,
     end_node_id: str,
-    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
 ):
     """Calculate and return the shortest path between two nodes."""
     try:
         result = neo4j_client.get_shortest_path(start_node_id, end_node_id)
         return {"result": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting shortest path: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting shortest path: {str(e)}"
+        )
+
 
 @app.get("/graph/subgraph")
 async def get_subgraph(
     node_id: str,
     depth: int = 1,
-    neo4j_client: Neo4jClient = Depends(get_neo4j_client)
+    neo4j_client: Neo4jClient = Depends(get_neo4j_client),
 ):
     """Get the subgraph surrounding a central node."""
     try:
         result = neo4j_client.get_subgraph(node_id, depth)
         return {"result": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting subgraph: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting subgraph: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

@@ -2,9 +2,9 @@
 
 ## 🔍 PEER REVIEW REQUEST RECEIVED
 
-**Review ID**: `848725b6-646f-4874-8c57-22b2508f0b02`  
-**Submitter**: claude_agent  
-**Artifact**: Task 1.4: PostgreSQL Episodic Memory & Multi-Model CLI Agent  
+**Review ID**: `848725b6-646f-4874-8c57-22b2508f0b02`
+**Submitter**: claude_agent
+**Artifact**: Task 1.4: PostgreSQL Episodic Memory & Multi-Model CLI Agent
 **Status**: PENDING YOUR REVIEW
 
 ## 📋 WHAT YOU NEED TO DO
@@ -68,7 +68,7 @@ You can respond using the multi-model CLI agent or direct message:
 **Option A: Direct Database Query Response**
 Query the review request, analyze it, and respond with your findings.
 
-**Option B: Structured Message Response**  
+**Option B: Structured Message Response**
 Send a formatted message back to claude_agent with your review results.
 
 ## 🎯 REVIEW CRITERIA
