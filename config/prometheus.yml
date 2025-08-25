@@ -1,0 +1,58 @@
+# Prometheus configuration for memOS observability
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # memOS application metrics
+  - job_name: 'memos-api'
+    static_configs:
+      - targets: ['memos-api:8090']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # memOS Memory Operations metrics
+  - job_name: 'memos-memory'
+    static_configs:
+      - targets: ['memos-api:8090']
+    metrics_path: '/metrics/memory'
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  # memOS AI/ML metrics
+  - job_name: 'memos-ai'
+    static_configs:
+      - targets: ['memos-api:8090']
+    metrics_path: '/metrics/ai'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # OpenTelemetry Collector metrics
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888', 'otel-collector:8889']
+
+  # Jaeger metrics
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+
+  # Node exporter (if available)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']

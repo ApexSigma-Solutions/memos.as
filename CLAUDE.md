@@ -32,14 +32,14 @@ uv venv && uv pip install -r requirements.txt
 # Windows activation
 .venv\Scripts\activate
 
-# macOS/Linux activation  
+# macOS/Linux activation
 source .venv/bin/activate
 ```
 
 ### Database Migrations
 The project uses Alembic for database migrations with dynamic URL configuration:
 ```bash
-# Database URL is set dynamically by ConPort's run_migrations function
+# Database URL is set dynamically in the migration system
 # Migration files are in context_portal/alembic/versions/
 ```
 
@@ -47,7 +47,7 @@ The project uses Alembic for database migrations with dynamic URL configuration:
 
 ### API Models (`app/models.py`)
 - `StoreRequest`: For memory storage operations
-- `QueryRequest`: For memory retrieval with configurable top_k results  
+- `QueryRequest`: For memory retrieval with configurable top_k results
 - `ToolRegistrationRequest`: For tool discovery system
 
 ### Service Clients (`app/services/`)
@@ -58,30 +58,19 @@ The project uses Alembic for database migrations with dynamic URL configuration:
 ### Context Portal
 The `context_portal/` directory contains the database migration system and vector data storage, with Alembic managing schema evolution and relationship mapping.
 
-## ConPort Agent Memory Protocol
+## Memory System Integration
 
-This project implements the ConPort Agent Memory Protocol - a mandatory set of rules for AI agent interaction with the shared memory system.
+This project provides sophisticated memory capabilities for AI agents within the ApexSigma ecosystem.
 
-### Session Initialization Protocol (MANDATORY)
-Every agent session must begin with:
-1. **Check for existing context**: Look for `context.db` file in workspace
-2. **Load existing context**: If found, retrieve and load project context
-3. **Dynamic context retrieval**: Use RAG strategy with FTS and semantic search
-
-### Core Protocol Rules
+### Core Memory Principles
 - **Retrieve First, Store Last**: Always check existing memory before storing new information
 - **User Confirmation Required**: All write/update/delete operations need explicit user approval
 - **Proactive Knowledge Management**: Identify and suggest logging decisions, progress, and relationships
 
-### Memory System Integration
-When working with the byterover-mcp system:
-- Always use `byterover-retrieve-knowledge` before starting tasks to get relevant context
-- Always use `byterover-store-knowledge` to store critical information after successful task completion
-
 ### Society of Agents Collaboration
 The system supports role-based collaboration:
 - **@Claude**: Architect role
-- **@Gemini**: Implementer role  
+- **@Gemini**: Implementer role
 - **@Qodo**: QA role
 - **Mandatory Agent Review (MAR)**: All artifacts require review and approval before integration
 

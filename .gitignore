@@ -3,6 +3,14 @@
 !.env.project
 !.env.vault
 
+# Testing and development files
+test_*.py
+*_test.py
+debug_*.py
+*demo*.py
+activate_langfuse*.py
+langfuse_troubleshoot*.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

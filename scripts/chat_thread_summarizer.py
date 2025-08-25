@@ -4,7 +4,7 @@ Chat Thread Summarizer with Progress Logging for MemOS.as
 
 This script takes chat threads, summarizes them, and automatically saves progress
 with environment snapshots to memOS.as for historical tracking.
-Specialized for MemOS memory management and ConPort protocol.
+Specialized for MemOS memory management and agent memory protocol.
 """
 
 import asyncio
@@ -24,7 +24,7 @@ MEMOS_SERVICES_AVAILABLE = False
 
 
 class MemOSThreadSummarizer:
-    """Summarizes chat threads with MemOS ConPort protocol focus."""
+    """Summarizes chat threads with MemOS memory protocol focus."""
 
     def __init__(self, memos_base_url: str = "http://devenviro_memos_api:8090"):
         """Initialize the MemOS summarizer."""
@@ -68,7 +68,7 @@ class MemOSThreadSummarizer:
         if output_dir:
             await self._save_summary_to_file(summary, output_dir)
 
-        # Save progress using ConPort protocol
+        # Save progress using memory protocol
         if save_progress:
             await self._save_progress_to_memos(summary, env_snapshot)
 
@@ -198,7 +198,7 @@ class MemOSThreadSummarizer:
                     "network_unified": "apexsigma_net" in " ".join(network_containers),
                     "memory_tier_ready": all(memory_status.values()),
                     "storage_systems": memory_status,
-                    "conport_protocol": "active"
+                    "memory_protocol": "active"
                 }
             }
 
@@ -248,7 +248,7 @@ class MemOSThreadSummarizer:
         memos_keywords = {
             "memory": content_lower.count("memory"),
             "memos": content_lower.count("memos"),
-            "conport": content_lower.count("conport"),
+            "memory": content_lower.count("memory"),
             "context": content_lower.count("context"),
             "storage": content_lower.count("storage"),
             "postgres": content_lower.count("postgres"),
@@ -267,7 +267,7 @@ class MemOSThreadSummarizer:
         important_lines = []
         for i, line in enumerate(lines):
             line_lower = line.lower()
-            if any(keyword in line_lower for keyword in ["memory", "memos", "conport", "context", "storage", "retrieve", "store", "error", "success", "complete", "failed"]):
+            if any(keyword in line_lower for keyword in ["memory", "memos", "memory", "context", "storage", "retrieve", "store", "error", "success", "complete", "failed"]):
                 important_lines.append({
                     "line_number": i + 1,
                     "content": line.strip()[:100] + "..." if len(line.strip()) > 100 else line.strip()
@@ -323,7 +323,7 @@ Important Memory Operations:
 
         # Memory-focused recommendations
         if keywords.get("memory", 0) > 5:
-            recommendations.append("Heavy memory operations detected - review ConPort protocol usage")
+            recommendations.append("Heavy memory operations detected - review memory protocol usage")
 
         if keywords.get("context", 0) > 3:
             recommendations.append("Context operations active - consider context database optimization")
@@ -342,7 +342,7 @@ Important Memory Operations:
             recommendations.append("Memory tiers incomplete - verify Postgres/Redis/Qdrant/Neo4j connectivity")
 
         if len(env_snapshot.get("environment", {}).get("git_changes", [])) > 6:
-            recommendations.append("Significant memory system changes - consider ConPort protocol validation")
+            recommendations.append("Significant memory system changes - consider memory protocol validation")
 
         return recommendations
 
@@ -377,12 +377,12 @@ Important Memory Operations:
         print(f"   Markdown: {md_file}")
 
     async def _save_progress_to_memos(self, summary: Dict[str, Any], env_snapshot: Dict[str, Any]) -> None:
-        """Save progress using ConPort protocol."""
+        """Save progress using memory protocol."""
 
-        print("Saving MemOS progress using ConPort protocol...")
+        print("Saving MemOS progress using memory protocol...")
 
         try:
-            # Use direct HTTP client for ConPort protocol
+            # Use direct HTTP client for memory protocol
             import httpx
 
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -403,12 +403,12 @@ Important Memory Operations:
                         "source_file": summary['source_file'],
                         "source_hash": summary['source_hash'],
                         "recommendations": summary['recommendations'],
-                        "conport_protocol": True,
+                        "memory_protocol": True,
                         "memory_focus": True
                     }
                 }
 
-                # Send to memOS.as via ConPort
+                # Send to memOS.as via memory
                 response = await client.post(
                     f"{self.memos_base_url}/memory/store",
                     json=progress_data,
@@ -417,25 +417,25 @@ Important Memory Operations:
 
                 if response.status_code == 200:
                     result = response.json()
-                    print(f"SUCCESS: MemOS progress saved via ConPort (Memory ID: {result.get('memory_id')})")
+                    print(f"SUCCESS: MemOS progress saved via memory (Memory ID: {result.get('memory_id')})")
                 else:
-                    print(f"WARNING: Failed to save via ConPort: {response.status_code}")
+                    print(f"WARNING: Failed to save via memory: {response.status_code}")
 
         except Exception as e:
-            print(f"WARNING: Could not save MemOS progress via ConPort: {e}")
+            print(f"WARNING: Could not save MemOS progress via memory: {e}")
 
 
 async def main():
     """Main entry point for MemOS chat thread summarizer."""
 
     parser = argparse.ArgumentParser(
-        description="Summarize chat threads with MemOS memory focus and ConPort protocol logging",
+        description="Summarize chat threads with MemOS memory focus and memory protocol logging",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 MemOS Examples:
   python chat_thread_summarizer.py memory_chat.txt                   # Summarize memory operations
   python chat_thread_summarizer.py chat.txt --output ./summaries     # Save to custom directory
-  python chat_thread_summarizer.py chat.txt --no-progress            # Skip ConPort logging
+  python chat_thread_summarizer.py chat.txt --no-progress            # Skip memory logging
         """
     )
 
@@ -499,7 +499,7 @@ MemOS Examples:
 
 if __name__ == "__main__":
     print("ApexSigma MemOS Chat Thread Summarizer")
-    print("ConPort protocol focus with tiered memory logging")
+    print("memory protocol focus with tiered memory logging")
     print()
 
     asyncio.run(main())

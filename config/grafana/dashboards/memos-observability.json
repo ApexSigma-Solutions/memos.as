@@ -1,0 +1,219 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "memOS Comprehensive Observability Dashboard",
+    "tags": ["memos", "observability", "llm", "ai", "memory"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Request Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 50}
+              ]
+            },
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "API Response Times (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{method}} {{endpoint}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "Median {{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Active HTTP Requests",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "http_requests_in_flight",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 25}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "HTTP Status Codes",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (status) (rate(http_requests_total[5m]))",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Memory Operations Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(memory_operations_total[5m])",
+            "legendFormat": "{{operation_type}} - {{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Memory Operation Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(memory_operation_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile {{operation_type}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(memory_operation_duration_seconds_bucket[5m]))",
+            "legendFormat": "Median {{operation_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Persistent Memory Size by Session",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "persistent_memory_size_bytes",
+            "legendFormat": "Session {{session_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Memory Search Results",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "memory_search_results",
+            "legendFormat": "{{query_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "AI Model Inference Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(ai_model_inference_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th {{model}} {{operation}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(ai_model_inference_duration_seconds_bucket[5m]))",
+            "legendFormat": "Median {{model}} {{operation}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16}
+      },
+      {
+        "id": 10,
+        "title": "Token Processing Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "token_processing_rate",
+            "legendFormat": "{{model}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "tps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 24}
+      },
+      {
+        "id": 11,
+        "title": "AI Service Requests",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(ai_service_requests_total[5m])",
+            "legendFormat": "{{service}} - {{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 9, "x": 6, "y": 24}
+      },
+      {
+        "id": 12,
+        "title": "Queue Sizes",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "queue_size",
+            "legendFormat": "{{queue_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 500}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 9, "x": 15, "y": 24}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s"
+  }
+}

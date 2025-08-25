@@ -1,0 +1,200 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "memOS Logs & Observability Dashboard",
+    "tags": ["memos", "logs", "observability", "loki"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Access Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"ai-tool-api\"} | json | line_format \"{{.status_code}} {{.response_time}}ms {{.endpoint}} - {{.message}}\"",
+            "legendFormat": "API Access"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "sortOrder": "Descending"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "API Response Time Distribution",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "quantile_over_time(0.95, {service=\"ai-tool-api\"} | json | unwrap response_time [5m])",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "quantile_over_time(0.50, {service=\"ai-tool-api\"} | json | unwrap response_time [5m])",
+            "legendFormat": "Median"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Application Logs by Level",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"ai-tool-app\"} | json | line_format \"[{{.level}}] {{.session_id}} - {{.message}}\"",
+            "legendFormat": "Application Logs"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "sortOrder": "Descending"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Log Level Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (level) (count_over_time({service=\"ai-tool-app\"} | json [1h]))",
+            "legendFormat": "{{level}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Error Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"ai-tool\"} | json | level=\"error\" | line_format \"[ERROR] {{.timestamp}} - {{.message}}\"",
+            "legendFormat": "Error Logs"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "sortOrder": "Descending"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "red"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Memory Operations",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"memory-service\"} | json | line_format \"{{.operation}} ({{.memory_type}}) - {{.duration}}ms\"",
+            "legendFormat": "Memory Operations"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "sortOrder": "Descending"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 7,
+        "title": "Memory Operation Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "quantile_over_time(0.95, {service=\"memory-service\"} | json | unwrap duration [5m]) by (operation)",
+            "legendFormat": "95th percentile {{operation}}"
+          },
+          {
+            "expr": "quantile_over_time(0.50, {service=\"memory-service\"} | json | unwrap duration [5m]) by (operation)",
+            "legendFormat": "Median {{operation}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "API Status Code Distribution",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by (status_code) (count_over_time({service=\"ai-tool-api\"} | json [1h]))",
+            "legendFormat": "{{status_code}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 300},
+                {"color": "red", "value": 400}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32}
+      },
+      {
+        "id": 9,
+        "title": "Session Activity",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "count by (session_id) (count_over_time({service=~\"ai-tool.*\"} | json | session_id != \"\" [5m]))",
+            "legendFormat": "{{session_id}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32}
+      },
+      {
+        "id": 10,
+        "title": "Error Rate Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(({service=\"ai-tool\"} | json | level=\"error\") [5m])",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "red"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s"
+  }
+}

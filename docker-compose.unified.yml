@@ -1,0 +1,226 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # MEMOS APPLICATION STACK
+  # =============================================================================
+
+  memos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memos_api
+    ports:
+      - "8091:8090"
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://memos:memos123@172.24.0.2:5432/memos
+      - POSTGRES_HOST=172.24.0.2
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=memos
+      - POSTGRES_USER=memos
+      - POSTGRES_PASSWORD=memos123
+    volumes:
+      - ./app:/app/app
+      - ./context_portal:/app/context_portal
+    depends_on:
+      - prometheus
+      - grafana
+    networks:
+      - observability_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # MONITORING & OBSERVABILITY STACK
+  # =============================================================================
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    container_name: memos_prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9091:9090"
+    networks:
+      - observability_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana - Metrics Visualization
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: memos_grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=memos123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ADMIN_USER=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - observability_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: memos_jaeger
+    ports:
+      - "16687:16686"  # Jaeger UI
+      - "14269:14268"  # Jaeger collector HTTP (changed port to avoid conflict)
+      - "6831:6831/udp"    # Jaeger agent UDP
+      - "6832:6832/udp"    # Jaeger agent UDP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+    networks:
+      - observability_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:14269/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: memos_otel_collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "14317:4317"   # OTLP gRPC receiver
+      - "14318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter metrics
+    depends_on:
+      - jaeger
+      - prometheus
+    networks:
+      - observability_net
+    restart: unless-stopped
+
+  # Loki - Log Aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: memos_loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - observability_net
+    restart: unless-stopped
+
+  # Promtail - Log Shipping to Loki
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: memos_promtail
+    volumes:
+      - ./config/promtail-config.yaml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - observability_net
+    restart: unless-stopped
+
+  # =============================================================================
+  # OPTIONAL SERVICES
+  # =============================================================================
+
+  # Redis - Caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: memos_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - observability_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL - Database (optional)
+  postgres:
+    image: postgres:14-alpine
+    container_name: memos_postgres
+    environment:
+      POSTGRES_DB: memos
+      POSTGRES_USER: memos
+      POSTGRES_PASSWORD: memos123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"  # Different port to avoid conflicts
+    networks:
+      - observability_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memos_user -d memos"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  observability_net:
+    driver: bridge

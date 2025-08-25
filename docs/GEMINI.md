@@ -85,9 +85,9 @@ Every agent session must begin with:
 
 ### Memory System Integration
 
--  **ConPort Agent Memory Protocol**
+-  **Agent Memory Protocol**
 
-- This project implements the ConPort Agent Memory Protocol - a mandatory set of rules for AI agent interaction with the shared memory system.
+- This project implements the Agent Memory Protocol - a set of best practices for AI agent interaction with the shared memory system.
 
 ### Society of Agents Collaboration
 The system supports role-based collaboration:

@@ -16,7 +16,13 @@ from functools import wraps
 from contextlib import contextmanager
 
 import structlog
-from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest
+from prometheus_client import (
+    Counter,
+    Histogram,
+    Gauge,
+    CollectorRegistry,
+    generate_latest,
+)
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -25,7 +31,6 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from langfuse import Langfuse
-
 
 
 class ObservabilityService:
@@ -40,12 +45,16 @@ class ObservabilityService:
         self.service_name = "memos-as"
         self.version = "1.0.0"
 
+        # Initialize langfuse first (may be None)
+        self.langfuse = None
+
         # Initialize components
         self._setup_logging()
         self._setup_metrics()
         self._setup_tracing()
+        self._setup_langfuse()
 
-
+        # Set logger and tracer after setup
         self.logger = structlog.get_logger()
         self.tracer = trace.get_tracer(self.service_name)
 
@@ -61,7 +70,7 @@ class ObservabilityService:
                 structlog.processors.StackInfoRenderer(),
                 structlog.processors.format_exc_info,
                 structlog.processors.UnicodeDecoder(),
-                structlog.processors.JSONRenderer()
+                structlog.processors.JSONRenderer(),
             ],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
@@ -75,61 +84,62 @@ class ObservabilityService:
 
         # Request metrics
         self.request_count = Counter(
-            'memos_requests_total',
-            'Total number of requests',
-            ['method', 'endpoint', 'status_code'],
-            registry=self.registry
+            "memos_requests_total",
+            "Total number of requests",
+            ["method", "endpoint", "status_code"],
+            registry=self.registry,
         )
 
         self.request_duration = Histogram(
-            'memos_request_duration_seconds',
-            'Request duration in seconds',
-            ['method', 'endpoint'],
-            registry=self.registry
+            "memos_request_duration_seconds",
+            "Request duration in seconds",
+            ["method", "endpoint"],
+            registry=self.registry,
         )
 
         # Memory operations metrics
         self.memory_operations = Counter(
-            'memos_memory_operations_total',
-            'Total memory operations',
-            ['operation', 'status'],
-            registry=self.registry
+            "memos_memory_operations_total",
+            "Total memory operations",
+            ["operation", "status"],
+            registry=self.registry,
         )
 
         self.memory_storage_duration = Histogram(
-            'memos_memory_storage_duration_seconds',
-            'Memory storage operation duration',
-            ['tier'],
-            registry=self.registry
+            "memos_memory_storage_duration_seconds",
+            "Memory storage operation duration",
+            ["tier"],
+            registry=self.registry,
         )
 
         # Knowledge graph metrics
         self.knowledge_graph_operations = Counter(
-            'memos_knowledge_graph_operations_total',
-            'Knowledge graph operations',
-            ['operation', 'node_type'],
-            registry=self.registry
+            "memos_knowledge_graph_operations_total",
+            "Knowledge graph operations",
+            ["operation", "node_type"],
+            registry=self.registry,
         )
 
         self.concepts_extracted = Histogram(
-            'memos_concepts_extracted',
-            'Number of concepts extracted per memory',
-            buckets=[0, 1, 5, 10, 20, 50]
+            "memos_concepts_extracted",
+            "Number of concepts extracted per memory",
+            buckets=[0, 1, 5, 10, 20, 50],
+            registry=self.registry,
         )
 
         # System metrics
         self.active_connections = Gauge(
-            'memos_active_connections',
-            'Active database connections',
-            ['database'],
-            registry=self.registry
+            "memos_active_connections",
+            "Active database connections",
+            ["database"],
+            registry=self.registry,
         )
 
         self.cache_hits = Counter(
-            'memos_cache_hits_total',
-            'Cache hit/miss statistics',
-            ['cache_type', 'status'],
-            registry=self.registry
+            "memos_cache_hits_total",
+            "Cache hit/miss statistics",
+            ["cache_type", "status"],
+            registry=self.registry,
         )
 
     def _setup_tracing(self):
@@ -148,12 +158,53 @@ class ObservabilityService:
         trace.get_tracer_provider().add_span_processor(span_processor)
 
     def _setup_langfuse(self):
-        """Configure Langfuse client."""
-        self.langfuse = Langfuse(
-            public_key=os.environ.get("LANGFUSE_API_KEY_PUBLIC"),
-            secret_key=os.environ.get("LANGFUSE_API_KEY_SECRET"),
-            host="https://cloud.langfuse.com"
-        )
+        """Configure Langfuse client with working API keys."""
+        try:
+            # Use the correct environment variable names
+            secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
+            public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
+            host = os.environ.get(
+                "LANGFUSE_HOST", "https://cloud.langfuse.com"
+            )
+
+            if secret_key and public_key:
+                self.langfuse = Langfuse(
+                    secret_key=secret_key, public_key=public_key, host=host
+                )
+
+                # Test authentication
+                if self.langfuse.auth_check():
+                    print("✅ Langfuse integration enabled and authenticated")
+                    # Create startup event to activate observability
+                    try:
+                        startup_event = self.langfuse.create_event(
+                            name="memos-startup",
+                            input="memOS observability initialization",
+                            output="Langfuse successfully connected",
+                            metadata={
+                                "service": self.service_name,
+                                "version": self.version,
+                                "event": "startup",
+                            },
+                        )
+                        self.langfuse.flush()
+                        print(f"🚀 Startup event created successfully")
+                    except Exception as trace_error:
+                        print(
+                            f"⚠️ Could not create startup event: {trace_error}"
+                        )
+                        # Continue anyway - Langfuse is still available
+                else:
+                    self.langfuse = None
+                    print("❌ Langfuse authentication failed")
+            else:
+                self.langfuse = None
+                print(
+                    "⚠️ Langfuse API keys not provided - LLM tracing disabled"
+                )
+        except Exception as e:
+            self.langfuse = None
+            print(f"❌ Failed to initialize Langfuse: {str(e)}")
 
     def instrument_fastapi(self, app):
         """Instrument FastAPI application with observability."""
@@ -175,15 +226,12 @@ class ObservabilityService:
 
                 # Record metrics
                 self.request_count.labels(
-                    method=method,
-                    endpoint=path,
-                    status_code=status_code
+                    method=method, endpoint=path, status_code=status_code
                 ).inc()
 
                 duration = time.time() - start_time
                 self.request_duration.labels(
-                    method=method,
-                    endpoint=path
+                    method=method, endpoint=path
                 ).observe(duration)
 
                 return response
@@ -191,9 +239,7 @@ class ObservabilityService:
             except Exception as e:
                 # Record error metrics
                 self.request_count.labels(
-                    method=method,
-                    endpoint=path,
-                    status_code=500
+                    method=method, endpoint=path, status_code=500
                 ).inc()
 
                 # Log error
@@ -202,7 +248,7 @@ class ObservabilityService:
                     method=method,
                     path=path,
                     error=str(e),
-                    duration=time.time() - start_time
+                    duration=time.time() - start_time,
                 )
                 raise
 
@@ -230,9 +276,17 @@ class ObservabilityService:
                 span.set_attribute("operation.error", str(e))
                 raise
             finally:
-                span.set_attribute("operation.duration", time.time() - start_time)
+                span.set_attribute(
+                    "operation.duration", time.time() - start_time
+                )
 
-    def record_memory_operation(self, operation: str, status: str, tier: str = None, duration: float = None):
+    def record_memory_operation(
+        self,
+        operation: str,
+        status: str,
+        tier: str = None,
+        duration: float = None,
+    ):
         """Record memory operation metrics."""
         self.memory_operations.labels(operation=operation, status=status).inc()
 
@@ -241,7 +295,9 @@ class ObservabilityService:
 
     def record_knowledge_graph_operation(self, operation: str, node_type: str):
         """Record knowledge graph operation metrics."""
-        self.knowledge_graph_operations.labels(operation=operation, node_type=node_type).inc()
+        self.knowledge_graph_operations.labels(
+            operation=operation, node_type=node_type
+        ).inc()
 
     def record_concepts_extracted(self, count: int):
         """Record number of concepts extracted."""
@@ -256,15 +312,12 @@ class ObservabilityService:
         """Log structured message for Loki."""
         log_method = getattr(self.logger, level.lower())
         log_method(
-            message,
-            service=self.service_name,
-            version=self.version,
-            **kwargs
+            message, service=self.service_name, version=self.version, **kwargs
         )
 
     def get_metrics(self) -> str:
         """Get Prometheus metrics in text format."""
-        return generate_latest(self.registry).decode('utf-8')
+        return generate_latest(self.registry).decode("utf-8")
 
     def health_check(self) -> Dict[str, Any]:
         """Health check with observability info."""
@@ -275,30 +328,129 @@ class ObservabilityService:
             "observability": {
                 "metrics_enabled": True,
                 "tracing_enabled": True,
-                "logging_structured": True
+                "logging_structured": True,
             },
             "integrations": {
                 "prometheus": True,
                 "jaeger": True,
-                "loki": True
-            }
+                "loki": True,
+                "langfuse": self.langfuse is not None,
+            },
         }
 
-    def trace_with_langfuse(self, operation_name: str = None, **kwargs):
-        """Decorator for tracing with Langfuse."""
-        def decorator(func):
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                trace = self.langfuse.trace(name=operation_name or func.__name__, **kwargs)
-                try:
-                    result = func(*args, **kwargs)
-                    trace.update(output=result)
-                    return result
-                except Exception as e:
-                    trace.update(output={"error": str(e)}, level="ERROR")
-                    raise
-            return wrapper
-        return decorator
+    def trace_llm_call(
+        self,
+        model: str,
+        input_text: str,
+        output_text: str = None,
+        user_id: str = None,
+        session_id: str = None,
+        operation: str = "completion",
+        metadata: Dict[str, Any] = None,
+    ):
+        """Trace LLM calls with Langfuse."""
+        if not self.langfuse:
+            return None
+
+        try:
+            # Create generation using the new API
+            generation = self.langfuse.start_generation(
+                name=f"memos-{operation}",
+                model=model,
+                input=input_text,
+                metadata={
+                    "service": self.service_name,
+                    "operation": operation,
+                    "user_id": user_id,
+                    "session_id": session_id,
+                    **(metadata or {}),
+                },
+            )
+
+            # Update with output if available
+            if output_text:
+                generation.update(output=output_text)
+
+            generation.end()
+
+            return generation.id
+        except Exception as e:
+            self.log_structured(
+                "error", "Failed to trace LLM call", error=str(e)
+            )
+            return None
+
+    def trace_user_session(
+        self,
+        user_id: str,
+        session_id: str,
+        action: str,
+        metadata: Dict[str, Any] = None,
+    ):
+        """Trace user session events."""
+        if not self.langfuse:
+            return None
+
+        try:
+            session_data = {
+                "id": session_id,
+                "user_id": user_id,
+                "metadata": {
+                    "action": action,
+                    "service": self.service_name,
+                    **(metadata or {}),
+                },
+            }
+
+            session = self.langfuse.trace(**session_data)
+            return session.id
+        except Exception as e:
+            self.log_structured(
+                "error", "Failed to trace session", error=str(e)
+            )
+            return None
+
+    def trace_memory_operation_detailed(
+        self,
+        operation: str,
+        memory_content: str,
+        user_id: str = None,
+        metadata: Dict[str, Any] = None,
+    ):
+        """Trace detailed memory operations."""
+        if not self.langfuse:
+            return None
+
+        try:
+            trace_data = {
+                "name": f"memory-{operation}",
+                "input": memory_content,
+                "metadata": {
+                    "operation": operation,
+                    "user_id": user_id,
+                    "service": self.service_name,
+                    **(metadata or {}),
+                },
+            }
+
+            trace = self.langfuse.trace(**trace_data)
+            return trace.id
+        except Exception as e:
+            self.log_structured(
+                "error", "Failed to trace memory operation", error=str(e)
+            )
+            return None
+
+    def flush_langfuse(self):
+        """Flush Langfuse data immediately."""
+        if self.langfuse:
+            try:
+                self.langfuse.flush()
+                self.log_structured("debug", "Langfuse data flushed")
+            except Exception as e:
+                self.log_structured(
+                    "error", "Failed to flush Langfuse", error=str(e)
+                )
 
 
 # Global observability instance
@@ -315,6 +467,7 @@ def get_observability() -> ObservabilityService:
 
 def trace_async(operation_name: str = None):
     """Decorator for tracing async functions."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -323,12 +476,15 @@ def trace_async(operation_name: str = None):
 
             with obs.trace_operation(op_name, function=func.__name__):
                 return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
 def trace_sync(operation_name: str = None):
     """Decorator for tracing sync functions."""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -337,5 +493,7 @@ def trace_sync(operation_name: str = None):
 
             with obs.trace_operation(op_name, function=func.__name__):
                 return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

@@ -7,7 +7,7 @@ memOS.as is a FastAPI microservice that serves as the central memory and tool di
 - **Multi-tier Memory Architecture**: Redis (working memory), PostgreSQL (structured storage), Qdrant (vector search)
 - **Tool Discovery System**: Register and discover tools across the ecosystem
 - **Semantic Memory Search**: Vector-based similarity search for episodic memories
-- **ConPort Agent Memory Protocol**: Standardized protocol for AI agent memory interaction
+- **Agent Memory Protocol**: Standardized protocol for AI agent memory interaction
 
 ## Quick Start
 

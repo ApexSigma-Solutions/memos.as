@@ -42,4 +42,5 @@ opentelemetry-instrumentation-sqlalchemy
 opentelemetry-instrumentation-redis
 opentelemetry-exporter-jaeger-thrift
 structlog
+langfuse
 deprecated

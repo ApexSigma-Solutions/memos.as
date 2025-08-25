@@ -1,0 +1,4 @@
+# Additional dependencies for memOS observability instrumentation
+prometheus-client==0.20.0
+structlog==24.1.0
+flask==3.0.3
