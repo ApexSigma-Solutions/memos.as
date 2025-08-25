@@ -23,3 +23,15 @@ This page provides automatically generated documentation for all memOS.as servic
 ### Redis Client
 
 ::: app.services.redis_client
+
+### Neo4j Client
+
+::: app.services.neo4j_client
+
+### Database Health
+
+::: app.services.database_health
+
+### Observability
+
+::: app.services.observability
