@@ -2,35 +2,85 @@ version: '3.8'
 
 services:
   # =============================================================================
-  # MEMOS APPLICATION STACK
+  # CORE APPLICATION STACK
   # =============================================================================
 
+  # InGest-LLM.as - Data Ingestion Service
+  ingest-llm-api:
+    build:
+      context: ../InGest-LLM.as
+      dockerfile: Dockerfile
+    container_name: unified_ingest_llm_api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+      - MEMOS_API_URL=http://memos-api:8090
+      - DATABASE_URL=postgresql://memos:memos123@postgres:5432/memos
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=knowledge123
+      - ECOSYSTEM_BASE_PATH=/workspace
+    volumes:
+      - ../:/workspace:ro  # Mount entire ApexSigmaProjects.Dev as read-only
+    depends_on:
+      - postgres
+      - qdrant
+      - redis
+      - neo4j
+    networks:
+      - unified_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # memOS API - Memory Operating System
   memos-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: memos_api
+    container_name: unified_memos_api
     ports:
-      - "8091:8090"
+      - "8090:8090"
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app
       - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://memos:memos123@172.24.0.2:5432/memos
-      - POSTGRES_HOST=172.24.0.2
+      - DATABASE_URL=postgresql://memos:memos123@postgres:5432/memos
+      - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=memos
       - POSTGRES_USER=memos
       - POSTGRES_PASSWORD=memos123
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=knowledge123
+      - INGEST_API_URL=http://ingest-llm-api:8000
     volumes:
       - ./app:/app/app
       - ./context_portal:/app/context_portal
     depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - neo4j
       - prometheus
       - grafana
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
@@ -45,7 +95,7 @@ services:
   # Prometheus - Metrics Collection
   prometheus:
     image: prom/prometheus:v2.50.1
-    container_name: memos_prometheus
+    container_name: unified_prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -57,9 +107,9 @@ services:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     ports:
-      - "9091:9090"
+      - "9090:9090"
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
@@ -70,9 +120,9 @@ services:
   # Grafana - Metrics Visualization
   grafana:
     image: grafana/grafana:10.4.1
-    container_name: memos_grafana
+    container_name: unified_grafana
     ports:
-      - "3001:3000"
+      - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=memos123
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -84,7 +134,7 @@ services:
     depends_on:
       - prometheus
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -95,17 +145,17 @@ services:
   # Jaeger - Distributed Tracing
   jaeger:
     image: jaegertracing/all-in-one:1.60
-    container_name: memos_jaeger
+    container_name: unified_jaeger
     ports:
-      - "16687:16686"  # Jaeger UI
-      - "14269:14268"  # Jaeger collector HTTP (changed port to avoid conflict)
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector HTTP
       - "6831:6831/udp"    # Jaeger agent UDP
       - "6832:6832/udp"    # Jaeger agent UDP
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       - SPAN_STORAGE_TYPE=memory
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:14269/"]
@@ -116,26 +166,26 @@ services:
   # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.96.0
-    container_name: memos_otel_collector
+    container_name: unified_otel_collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "14317:4317"   # OTLP gRPC receiver
-      - "14318:4318"   # OTLP HTTP receiver
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
       - "8888:8888"   # Prometheus metrics
       - "8889:8889"   # Prometheus exporter metrics
     depends_on:
       - jaeger
       - prometheus
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
 
   # Loki - Log Aggregation
   loki:
     image: grafana/loki:2.9.0
-    container_name: memos_loki
+    container_name: unified_loki
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
@@ -143,13 +193,13 @@ services:
       - ./config/loki-config.yaml:/etc/loki/local-config.yaml
       - loki_data:/loki
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
 
   # Promtail - Log Shipping to Loki
   promtail:
     image: grafana/promtail:2.9.0
-    container_name: memos_promtail
+    container_name: unified_promtail
     volumes:
       - ./config/promtail-config.yaml:/etc/promtail/config.yml
       - /var/log:/var/log:ro
@@ -158,34 +208,17 @@ services:
     depends_on:
       - loki
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
 
   # =============================================================================
-  # OPTIONAL SERVICES
+  # DATABASE STACK
   # =============================================================================
 
-  # Redis - Caching (optional)
-  redis:
-    image: redis:7-alpine
-    container_name: memos_redis
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - observability_net
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # PostgreSQL - Database (optional)
+  # PostgreSQL - Primary Database
   postgres:
     image: postgres:14-alpine
-    container_name: memos_postgres
+    container_name: unified_postgres
     environment:
       POSTGRES_DB: memos
       POSTGRES_USER: memos
@@ -193,12 +226,75 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"  # Different port to avoid conflicts
+      - "5432:5432"
     networks:
-      - observability_net
+      - unified_net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U memos_user -d memos"]
+      test: ["CMD-SHELL", "pg_isready -U memos -d memos"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Qdrant - Vector Database for Embeddings
+  qdrant:
+    image: qdrant/qdrant:v1.8.2
+    container_name: unified_qdrant
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - unified_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis - Caching and Fast Memory
+  redis:
+    image: redis:7-alpine
+    container_name: unified_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - unified_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Neo4j - Knowledge Graph Database
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: unified_neo4j
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    environment:
+      - NEO4J_AUTH=neo4j/knowledge123
+      - NEO4J_dbms_memory_heap_initial__size=512m
+      - NEO4J_dbms_memory_heap_max__size=2G
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_dbms_default__database=memos
+    networks:
+      - unified_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "knowledge123", "RETURN 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -217,10 +313,16 @@ volumes:
     driver: local
   postgres_data:
     driver: local
+  qdrant_data:
+    driver: local
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
 
 # =============================================================================
 # NETWORKS
 # =============================================================================
 networks:
-  observability_net:
+  unified_net:
     driver: bridge
