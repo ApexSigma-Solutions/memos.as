@@ -163,9 +163,7 @@ class ObservabilityService:
             # Use the correct environment variable names
             secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
             public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
-            host = os.environ.get(
-                "LANGFUSE_HOST", "https://cloud.langfuse.com"
-            )
+            host = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
 
             if secret_key and public_key:
                 self.langfuse = Langfuse(
@@ -177,7 +175,7 @@ class ObservabilityService:
                     print("✅ Langfuse integration enabled and authenticated")
                     # Create startup event to activate observability
                     try:
-                        startup_event = self.langfuse.create_event(
+                        self.langfuse.create_event(
                             name="memos-startup",
                             input="memOS observability initialization",
                             output="Langfuse successfully connected",
@@ -188,20 +186,16 @@ class ObservabilityService:
                             },
                         )
                         self.langfuse.flush()
-                        print(f"🚀 Startup event created successfully")
+                        print("🚀 Startup event created successfully")
                     except Exception as trace_error:
-                        print(
-                            f"⚠️ Could not create startup event: {trace_error}"
-                        )
+                        print(f"⚠️ Could not create startup event: {trace_error}")
                         # Continue anyway - Langfuse is still available
                 else:
                     self.langfuse = None
                     print("❌ Langfuse authentication failed")
             else:
                 self.langfuse = None
-                print(
-                    "⚠️ Langfuse API keys not provided - LLM tracing disabled"
-                )
+                print("⚠️ Langfuse API keys not provided - LLM tracing disabled")
         except Exception as e:
             self.langfuse = None
             print(f"❌ Failed to initialize Langfuse: {str(e)}")
@@ -230,9 +224,9 @@ class ObservabilityService:
                 ).inc()
 
                 duration = time.time() - start_time
-                self.request_duration.labels(
-                    method=method, endpoint=path
-                ).observe(duration)
+                self.request_duration.labels(method=method, endpoint=path).observe(
+                    duration
+                )
 
                 return response
 
@@ -276,9 +270,7 @@ class ObservabilityService:
                 span.set_attribute("operation.error", str(e))
                 raise
             finally:
-                span.set_attribute(
-                    "operation.duration", time.time() - start_time
-                )
+                span.set_attribute("operation.duration", time.time() - start_time)
 
     def record_memory_operation(
         self,
@@ -311,9 +303,7 @@ class ObservabilityService:
     def log_structured(self, level: str, message: str, **kwargs):
         """Log structured message for Loki."""
         log_method = getattr(self.logger, level.lower())
-        log_method(
-            message, service=self.service_name, version=self.version, **kwargs
-        )
+        log_method(message, service=self.service_name, version=self.version, **kwargs)
 
     def get_metrics(self) -> str:
         """Get Prometheus metrics in text format."""
@@ -375,9 +365,7 @@ class ObservabilityService:
 
             return generation.id
         except Exception as e:
-            self.log_structured(
-                "error", "Failed to trace LLM call", error=str(e)
-            )
+            self.log_structured("error", "Failed to trace LLM call", error=str(e))
             return None
 
     def trace_user_session(
@@ -405,9 +393,7 @@ class ObservabilityService:
             session = self.langfuse.trace(**session_data)
             return session.id
         except Exception as e:
-            self.log_structured(
-                "error", "Failed to trace session", error=str(e)
-            )
+            self.log_structured("error", "Failed to trace session", error=str(e))
             return None
 
     def trace_memory_operation_detailed(
@@ -448,9 +434,7 @@ class ObservabilityService:
                 self.langfuse.flush()
                 self.log_structured("debug", "Langfuse data flushed")
             except Exception as e:
-                self.log_structured(
-                    "error", "Failed to flush Langfuse", error=str(e)
-                )
+                self.log_structured("error", "Failed to flush Langfuse", error=str(e))
 
 
 # Global observability instance

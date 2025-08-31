@@ -1,7 +1,6 @@
 .env*
 .flaskenv*
 !.env.project
-!.env.vault
 
 # Testing and development files
 test_*.py

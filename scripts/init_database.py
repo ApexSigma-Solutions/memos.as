@@ -6,13 +6,13 @@ This script ensures the PostgreSQL database tables are properly created
 with correct schema for integration testing.
 """
 
-import os
 import sys
 from pathlib import Path
 
 # Add the app directory to Python path
 app_dir = Path(__file__).parent.parent / "app"
 sys.path.insert(0, str(app_dir))
+
 
 def initialize_database():
     """Initialize the PostgreSQL database with correct schema."""
@@ -68,11 +68,13 @@ def initialize_database():
             except UnicodeEncodeError:
                 print("Memories table schema:")
             for col_name, data_type, nullable, default in columns:
-                print(f"   {col_name:15} : {data_type:12} (nullable: {nullable}, default: {default})")
+                print(
+                    f"   {col_name:15} : {data_type:12} (nullable: {nullable}, default: {default})"
+                )
 
             # Check if id column has proper auto-increment (serial/sequence)
-            id_column = next((col for col in columns if col[0] == 'id'), None)
-            if id_column and 'nextval' in str(id_column[3]):
+            id_column = next((col for col in columns if col[0] == "id"), None)
+            if id_column and "nextval" in str(id_column[3]):
                 try:
                     print("✅ ID column properly configured with auto-increment")
                 except UnicodeEncodeError:
@@ -95,8 +97,10 @@ def initialize_database():
         except UnicodeEncodeError:
             print(f"Database initialization failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def test_memory_storage():
     """Test memory storage functionality."""
@@ -114,10 +118,7 @@ def test_memory_storage():
         test_content = "Integration test memory content"
         test_metadata = {"test": True, "source": "init_script"}
 
-        memory_id = client.store_memory(
-            content=test_content,
-            metadata=test_metadata
-        )
+        memory_id = client.store_memory(content=test_content, metadata=test_metadata)
 
         if memory_id is not None:
             try:
@@ -129,9 +130,13 @@ def test_memory_storage():
             retrieved_memory = client.get_memory(memory_id)
             if retrieved_memory:
                 try:
-                    print(f"✅ Successfully retrieved memory: {retrieved_memory['content'][:50]}...")
+                    print(
+                        f"✅ Successfully retrieved memory: {retrieved_memory['content'][:50]}..."
+                    )
                 except UnicodeEncodeError:
-                    print(f"Successfully retrieved memory: {retrieved_memory['content'][:50]}...")
+                    print(
+                        f"Successfully retrieved memory: {retrieved_memory['content'][:50]}..."
+                    )
                 return True
             else:
                 try:
@@ -152,8 +157,10 @@ def test_memory_storage():
         except UnicodeEncodeError:
             print(f"Memory storage test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def main():
     """Main function to initialize database and run tests."""
@@ -188,6 +195,7 @@ def main():
         print("\nDatabase initialization and testing completed successfully!")
         print("memOS.as is ready for integration testing")
     return True
+
 
 if __name__ == "__main__":
     success = main()

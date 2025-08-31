@@ -2,8 +2,8 @@ import os
 import json
 import hashlib
 import time
-from typing import Any, Dict, List, Optional, Union
-from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 import redis
 
@@ -63,7 +63,7 @@ class RedisClient:
         try:
             self.client.ping()
             return True
-        except:
+        except Exception:
             return False
 
     # === Memory Query Caching ===
@@ -85,9 +85,7 @@ class RedisClient:
                 "result_count": len(results),
             }
 
-            self.client.setex(
-                cache_key, self.MEMORY_QUERY_TTL, json.dumps(cache_data)
-            )
+            self.client.setex(cache_key, self.MEMORY_QUERY_TTL, json.dumps(cache_data))
 
             # Track cache metrics
             self.client.incr("cache:queries:stored")
@@ -136,9 +134,7 @@ class RedisClient:
                 "dimensions": len(embedding),
             }
 
-            self.client.setex(
-                cache_key, self.EMBEDDING_TTL, json.dumps(embedding_data)
-            )
+            self.client.setex(cache_key, self.EMBEDDING_TTL, json.dumps(embedding_data))
 
             self.client.incr("cache:embeddings:stored")
             return True
@@ -169,9 +165,7 @@ class RedisClient:
 
     # === Working Memory Caching (Tier 1) ===
 
-    def store_working_memory(
-        self, key: str, memory_data: Dict[str, Any]
-    ) -> bool:
+    def store_working_memory(self, key: str, memory_data: Dict[str, Any]) -> bool:
         """Store working memory with shorter TTL."""
         if not self.is_connected():
             return False
@@ -263,9 +257,7 @@ class RedisClient:
 
     # === Cache Invalidation Strategies ===
 
-    def invalidate_memory_caches(
-        self, memory_id: Optional[int] = None
-    ) -> bool:
+    def invalidate_memory_caches(self, memory_id: Optional[int] = None) -> bool:
         """Invalidate memory-related caches when data changes."""
         if not self.is_connected():
             return False
@@ -283,7 +275,8 @@ class RedisClient:
                 if specific_keys:
                     self.client.delete(*specific_keys)
                     print(
-                        f"Invalidated {len(specific_keys)} memory-specific cache entries"
+                        f"Invalidated {len(specific_keys)} "
+                        "memory-specific cache entries"
                     )
 
             self.client.incr("cache:invalidations:memory")
@@ -348,9 +341,225 @@ class RedisClient:
             print(f"Error clearing expired caches: {e}")
             return {"error": str(e)}
 
-    # === Cache Performance Metrics ===
+    # === LLM Response Caching ===
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def cache_llm_response(
+        self,
+        model: str,
+        prompt: str,
+        response: str,
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Cache LLM response for prompt and parameters."""
+        if not self.is_connected():
+            return False
+
+        try:
+            # Create cache key from prompt and parameters
+            prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
+            cache_key = f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}"
+
+            cache_data = {
+                "model": model,
+                "prompt": prompt,
+                "response": response,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "cached_at": datetime.utcnow().isoformat(),
+                "metadata": metadata or {},
+                "response_length": len(response),
+                "prompt_length": len(prompt),
+            }
+
+            # Use longer TTL for LLM responses (4 hours)
+            self.client.setex(cache_key, 14400, json.dumps(cache_data))
+
+            self.client.incr("cache:llm:stored")
+            return True
+        except Exception as e:
+            print(f"Error caching LLM response: {e}")
+            return False
+
+    def get_cached_llm_response(
+        self, model: str, prompt: str, temperature: float = 0.7, max_tokens: int = 1000
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve cached LLM response."""
+        if not self.is_connected():
+            return None
+
+        try:
+            prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
+            cache_key = f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}"
+
+            cached_data = self.client.get(cache_key)
+            if cached_data:
+                response_obj = json.loads(cached_data)
+                self.client.incr("cache:llm:hits")
+                return response_obj
+            else:
+                self.client.incr("cache:llm:misses")
+                return None
+        except Exception as e:
+            print(f"Error retrieving cached LLM response: {e}")
+            return None
+
+    # === LLM Token Usage Tracking ===
+
+    def track_llm_usage(
+        self,
+        model: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int,
+        request_id: Optional[str] = None,
+    ) -> bool:
+        """Track LLM token usage for cost monitoring."""
+        if not self.is_connected():
+            return False
+
+        try:
+            usage_data = {
+                "model": model,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+                "timestamp": datetime.utcnow().isoformat(),
+                "request_id": request_id,
+            }
+
+            # Store individual usage record
+            usage_key = f"llm_usage:{model}:{int(time.time())}"
+            self.client.setex(usage_key, 2592000, json.dumps(usage_data))  # 30 days
+
+            # Update aggregate counters
+            self.client.incrby(f"llm:total_tokens:{model}", total_tokens)
+            self.client.incrby(f"llm:prompt_tokens:{model}", prompt_tokens)
+            self.client.incrby(f"llm:completion_tokens:{model}", completion_tokens)
+            self.client.incr(f"llm:requests:{model}")
+
+            return True
+        except Exception as e:
+            print(f"Error tracking LLM usage: {e}")
+            return False
+
+    def get_llm_usage_stats(self, model: Optional[str] = None) -> Dict[str, Any]:
+        """Get LLM usage statistics."""
+        if not self.is_connected():
+            return {"error": "Redis not connected"}
+
+        try:
+            stats = {}
+
+            if model:
+                models = [model]
+            else:
+                # Get all models that have usage data
+                usage_keys = self.client.keys("llm:requests:*")
+                models = [key.split(":")[-1] for key in usage_keys]
+
+            for model_name in models:
+                stats[model_name] = {
+                    "total_requests": int(
+                        self.client.get(f"llm:requests:{model_name}") or 0
+                    ),
+                    "total_tokens": int(
+                        self.client.get(f"llm:total_tokens:{model_name}") or 0
+                    ),
+                    "prompt_tokens": int(
+                        self.client.get(f"llm:prompt_tokens:{model_name}") or 0
+                    ),
+                    "completion_tokens": int(
+                        self.client.get(f"llm:completion_tokens:{model_name}") or 0
+                    ),
+                }
+
+            return stats
+        except Exception as e:
+            print(f"Error getting LLM usage stats: {e}")
+            return {"error": str(e)}
+
+    # === LLM Model Performance Caching ===
+
+    def cache_model_performance(
+        self,
+        model: str,
+        operation: str,
+        response_time: float,
+        success: bool = True,
+        error_message: Optional[str] = None,
+    ) -> bool:
+        """Cache model performance metrics."""
+        if not self.is_connected():
+            return False
+
+        try:
+            perf_data = {
+                "model": model,
+                "operation": operation,
+                "response_time": response_time,
+                "success": success,
+                "error_message": error_message,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+            # Store individual performance record
+            perf_key = f"llm_perf:{model}:{operation}:{int(time.time())}"
+            self.client.setex(perf_key, 604800, json.dumps(perf_data))  # 7 days
+
+            # Update rolling averages (last 100 requests)
+            success_key = f"llm_perf_success:{model}:{operation}"
+            time_key = f"llm_perf_time:{model}:{operation}"
+
+            # Use Redis lists to maintain rolling windows
+            self.client.lpush(success_key, 1 if success else 0)
+            self.client.lpush(time_key, response_time)
+
+            # Trim to last 100 entries
+            self.client.ltrim(success_key, 0, 99)
+            self.client.ltrim(time_key, 0, 99)
+
+            return True
+        except Exception as e:
+            print(f"Error caching model performance: {e}")
+            return False
+
+    def get_model_performance(self, model: str, operation: str) -> Dict[str, Any]:
+        """Get model performance metrics."""
+        if not self.is_connected():
+            return {"error": "Redis not connected"}
+
+        try:
+            success_key = f"llm_perf_success:{model}:{operation}"
+            time_key = f"llm_perf_time:{model}:{operation}"
+
+            success_scores = self.client.lrange(success_key, 0, -1)
+            response_times = self.client.lrange(time_key, 0, -1)
+
+            if not success_scores or not response_times:
+                return {"error": "No performance data available"}
+
+            # Calculate metrics
+            success_rate = sum(int(s) for s in success_scores) / len(success_scores)
+            avg_response_time = sum(float(t) for t in response_times) / len(
+                response_times
+            )
+            min_response_time = min(float(t) for t in response_times)
+            max_response_time = max(float(t) for t in response_times)
+
+            return {
+                "model": model,
+                "operation": operation,
+                "success_rate": round(success_rate * 100, 2),
+                "avg_response_time": round(avg_response_time, 3),
+                "min_response_time": round(min_response_time, 3),
+                "max_response_time": round(max_response_time, 3),
+                "sample_size": len(success_scores),
+            }
+        except Exception as e:
+            print(f"Error getting model performance: {e}")
+            return {"error": str(e)}
         """Get comprehensive cache performance statistics."""
         if not self.is_connected():
             return {"error": "Redis not connected"}
@@ -387,13 +596,11 @@ class RedisClient:
             stats["hit_ratios"] = {
                 "queries": safe_ratio(
                     stats["cache:queries:hits"],
-                    stats["cache:queries:hits"]
-                    + stats["cache:queries:misses"],
+                    stats["cache:queries:hits"] + stats["cache:queries:misses"],
                 ),
                 "embeddings": safe_ratio(
                     stats["cache:embeddings:hits"],
-                    stats["cache:embeddings:hits"]
-                    + stats["cache:embeddings:misses"],
+                    stats["cache:embeddings:hits"] + stats["cache:embeddings:misses"],
                 ),
                 "working_memory": safe_ratio(
                     stats["cache:working_memory:hits"],

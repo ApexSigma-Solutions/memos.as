@@ -5,11 +5,9 @@ This module implements comprehensive E2E tracing for the Memos service in the Ap
 Handles memory operations, chat thread management, and cross-service agent interactions.
 """
 
-import logging
 import uuid
 from typing import Dict, Any, Optional
 from contextlib import contextmanager
-from datetime import datetime
 
 from opentelemetry import trace, baggage
 from opentelemetry.trace import Status, StatusCode
@@ -26,13 +24,15 @@ logger = get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # Composite propagator for maximum compatibility
-propagator = CompositePropagator([
-    TraceContextTextMapPropagator(),
-    B3MultiFormat(),
-    B3SingleFormat(),
-    JaegerPropagator(),
-    W3CBaggagePropagator()
-])
+propagator = CompositePropagator(
+    [
+        TraceContextTextMapPropagator(),
+        B3MultiFormat(),
+        B3SingleFormat(),
+        JaegerPropagator(),
+        W3CBaggagePropagator(),
+    ]
+)
 
 
 class MemosE2ETracing:
@@ -50,21 +50,22 @@ class MemosE2ETracing:
         context = extract(headers)
 
         # Extract ApexSigma correlation headers
-        correlation_id = headers.get('x-apexsigma-correlation-id')
-        workflow_id = headers.get('x-apexsigma-workflow-id')
-        agent_chain = headers.get('x-apexsigma-agent-chain', '')
+        correlation_id = headers.get("x-apexsigma-correlation-id")
+        workflow_id = headers.get("x-apexsigma-workflow-id")
+        agent_chain = headers.get("x-apexsigma-agent-chain", "")
 
         return {
-            'context': context,
-            'correlation_id': correlation_id,
-            'workflow_id': workflow_id,
-            'agent_chain': agent_chain,
-            'source_service': headers.get('x-apexsigma-source-service'),
-            'request_id': headers.get('x-request-id', str(uuid.uuid4()))
+            "context": context,
+            "correlation_id": correlation_id,
+            "workflow_id": workflow_id,
+            "agent_chain": agent_chain,
+            "source_service": headers.get("x-apexsigma-source-service"),
+            "request_id": headers.get("x-request-id", str(uuid.uuid4())),
         }
 
-    def inject_response_context(self, response: Response, correlation_id: str,
-                              workflow_id: Optional[str] = None):
+    def inject_response_context(
+        self, response: Response, correlation_id: str, workflow_id: Optional[str] = None
+    ):
         """Inject tracing context into outgoing HTTP response."""
         carrier = {}
         inject(carrier)
@@ -74,15 +75,19 @@ class MemosE2ETracing:
             response.headers[key] = value
 
         # Add ApexSigma correlation headers
-        response.headers['x-apexsigma-correlation-id'] = correlation_id
+        response.headers["x-apexsigma-correlation-id"] = correlation_id
         if workflow_id:
-            response.headers['x-apexsigma-workflow-id'] = workflow_id
-        response.headers['x-apexsigma-service'] = self.service_name
+            response.headers["x-apexsigma-workflow-id"] = workflow_id
+        response.headers["x-apexsigma-service"] = self.service_name
 
     @contextmanager
-    def trace_memory_operation(self, operation_name: str, memory_type: str,
-                             correlation_id: Optional[str] = None,
-                             workflow_id: Optional[str] = None):
+    def trace_memory_operation(
+        self,
+        operation_name: str,
+        memory_type: str,
+        correlation_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+    ):
         """Trace memory operations (store, retrieve, update, delete)."""
         span_name = f"memos.memory.{operation_name}"
 
@@ -107,34 +112,44 @@ class MemosE2ETracing:
                 baggage.set_baggage("service", self.service_name)
                 baggage.set_baggage("operation", operation_name)
 
-                logger.info("Memory operation started",
-                          operation=operation_name,
-                          memory_type=memory_type,
-                          correlation_id=correlation_id,
-                          trace_id=format(span.get_span_context().trace_id, '032x'))
+                logger.info(
+                    "Memory operation started",
+                    operation=operation_name,
+                    memory_type=memory_type,
+                    correlation_id=correlation_id,
+                    trace_id=format(span.get_span_context().trace_id, "032x"),
+                )
 
                 yield span
 
                 span.set_status(Status(StatusCode.OK))
-                logger.info("Memory operation completed successfully",
-                          operation=operation_name,
-                          memory_type=memory_type,
-                          correlation_id=correlation_id)
+                logger.info(
+                    "Memory operation completed successfully",
+                    operation=operation_name,
+                    memory_type=memory_type,
+                    correlation_id=correlation_id,
+                )
 
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
-                logger.error("Memory operation failed",
-                           operation=operation_name,
-                           memory_type=memory_type,
-                           correlation_id=correlation_id,
-                           error=str(e))
+                logger.error(
+                    "Memory operation failed",
+                    operation=operation_name,
+                    memory_type=memory_type,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                )
                 raise
 
     @contextmanager
-    def trace_chat_thread(self, thread_id: str, operation: str,
-                         correlation_id: Optional[str] = None,
-                         workflow_id: Optional[str] = None):
+    def trace_chat_thread(
+        self,
+        thread_id: str,
+        operation: str,
+        correlation_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+    ):
         """Trace chat thread operations (create, update, summarize)."""
         span_name = f"memos.chat_thread.{operation}"
 
@@ -159,35 +174,45 @@ class MemosE2ETracing:
                 baggage.set_baggage("service", self.service_name)
                 baggage.set_baggage("chat_thread_id", thread_id)
 
-                logger.info("Chat thread operation started",
-                          operation=operation,
-                          thread_id=thread_id,
-                          correlation_id=correlation_id,
-                          trace_id=format(span.get_span_context().trace_id, '032x'))
+                logger.info(
+                    "Chat thread operation started",
+                    operation=operation,
+                    thread_id=thread_id,
+                    correlation_id=correlation_id,
+                    trace_id=format(span.get_span_context().trace_id, "032x"),
+                )
 
                 yield span
 
                 span.set_status(Status(StatusCode.OK))
-                logger.info("Chat thread operation completed",
-                          operation=operation,
-                          thread_id=thread_id,
-                          correlation_id=correlation_id)
+                logger.info(
+                    "Chat thread operation completed",
+                    operation=operation,
+                    thread_id=thread_id,
+                    correlation_id=correlation_id,
+                )
 
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
-                logger.error("Chat thread operation failed",
-                           operation=operation,
-                           thread_id=thread_id,
-                           correlation_id=correlation_id,
-                           error=str(e))
+                logger.error(
+                    "Chat thread operation failed",
+                    operation=operation,
+                    thread_id=thread_id,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                )
                 raise
 
     @contextmanager
-    def trace_agent_memory_access(self, agent_id: str, access_type: str,
-                                memory_key: Optional[str] = None,
-                                correlation_id: Optional[str] = None,
-                                workflow_id: Optional[str] = None):
+    def trace_agent_memory_access(
+        self,
+        agent_id: str,
+        access_type: str,
+        memory_key: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+    ):
         """Trace agent memory access patterns for the ApexSigma society."""
         span_name = f"memos.agent_memory.{access_type}"
 
@@ -216,35 +241,44 @@ class MemosE2ETracing:
                 baggage.set_baggage("agent_id", agent_id)
                 baggage.set_baggage("access_type", access_type)
 
-                logger.info("Agent memory access started",
-                          agent_id=agent_id,
-                          access_type=access_type,
-                          memory_key=memory_key,
-                          correlation_id=correlation_id,
-                          trace_id=format(span.get_span_context().trace_id, '032x'))
+                logger.info(
+                    "Agent memory access started",
+                    agent_id=agent_id,
+                    access_type=access_type,
+                    memory_key=memory_key,
+                    correlation_id=correlation_id,
+                    trace_id=format(span.get_span_context().trace_id, "032x"),
+                )
 
                 yield span
 
                 span.set_status(Status(StatusCode.OK))
-                logger.info("Agent memory access completed",
-                          agent_id=agent_id,
-                          access_type=access_type,
-                          correlation_id=correlation_id)
+                logger.info(
+                    "Agent memory access completed",
+                    agent_id=agent_id,
+                    access_type=access_type,
+                    correlation_id=correlation_id,
+                )
 
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
-                logger.error("Agent memory access failed",
-                           agent_id=agent_id,
-                           access_type=access_type,
-                           correlation_id=correlation_id,
-                           error=str(e))
+                logger.error(
+                    "Agent memory access failed",
+                    agent_id=agent_id,
+                    access_type=access_type,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                )
                 raise
 
-    def prepare_outbound_headers(self, target_service: str,
-                               correlation_id: Optional[str] = None,
-                               workflow_id: Optional[str] = None,
-                               agent_chain: Optional[str] = None) -> Dict[str, str]:
+    def prepare_outbound_headers(
+        self,
+        target_service: str,
+        correlation_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+        agent_chain: Optional[str] = None,
+    ) -> Dict[str, str]:
         """Prepare headers for outbound HTTP requests to other services."""
         headers = {}
 
@@ -253,28 +287,34 @@ class MemosE2ETracing:
 
         # Add ApexSigma correlation headers
         if correlation_id:
-            headers['x-apexsigma-correlation-id'] = correlation_id
+            headers["x-apexsigma-correlation-id"] = correlation_id
         if workflow_id:
-            headers['x-apexsigma-workflow-id'] = workflow_id
+            headers["x-apexsigma-workflow-id"] = workflow_id
         if agent_chain:
-            headers['x-apexsigma-agent-chain'] = f"{agent_chain}->{self.service_name}"
+            headers["x-apexsigma-agent-chain"] = f"{agent_chain}->{self.service_name}"
         else:
-            headers['x-apexsigma-agent-chain'] = self.service_name
+            headers["x-apexsigma-agent-chain"] = self.service_name
 
-        headers['x-apexsigma-source-service'] = self.service_name
-        headers['x-request-id'] = str(uuid.uuid4())
+        headers["x-apexsigma-source-service"] = self.service_name
+        headers["x-request-id"] = str(uuid.uuid4())
 
-        logger.debug("Prepared outbound headers",
-                    target_service=target_service,
-                    correlation_id=correlation_id,
-                    headers=list(headers.keys()))
+        logger.debug(
+            "Prepared outbound headers",
+            target_service=target_service,
+            correlation_id=correlation_id,
+            headers=list(headers.keys()),
+        )
 
         return headers
 
     @contextmanager
-    def trace_cross_service_call(self, target_service: str, operation: str,
-                               correlation_id: Optional[str] = None,
-                               workflow_id: Optional[str] = None):
+    def trace_cross_service_call(
+        self,
+        target_service: str,
+        operation: str,
+        correlation_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+    ):
         """Trace outbound calls to other ApexSigma services."""
         span_name = f"memos.outbound.{target_service}.{operation}"
 
@@ -294,28 +334,34 @@ class MemosE2ETracing:
                 if workflow_id:
                     span.set_attribute("apexsigma.workflow_id", workflow_id)
 
-                logger.info("Cross-service call initiated",
-                          target_service=target_service,
-                          operation=operation,
-                          correlation_id=correlation_id,
-                          trace_id=format(span.get_span_context().trace_id, '032x'))
+                logger.info(
+                    "Cross-service call initiated",
+                    target_service=target_service,
+                    operation=operation,
+                    correlation_id=correlation_id,
+                    trace_id=format(span.get_span_context().trace_id, "032x"),
+                )
 
                 yield span
 
                 span.set_status(Status(StatusCode.OK))
-                logger.info("Cross-service call completed",
-                          target_service=target_service,
-                          operation=operation,
-                          correlation_id=correlation_id)
+                logger.info(
+                    "Cross-service call completed",
+                    target_service=target_service,
+                    operation=operation,
+                    correlation_id=correlation_id,
+                )
 
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
-                logger.error("Cross-service call failed",
-                           target_service=target_service,
-                           operation=operation,
-                           correlation_id=correlation_id,
-                           error=str(e))
+                logger.error(
+                    "Cross-service call failed",
+                    target_service=target_service,
+                    operation=operation,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                )
                 raise
 
 

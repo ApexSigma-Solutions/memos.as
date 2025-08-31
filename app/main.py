@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,9 @@ from app.models import (
     StoreRequest,
     ToolRegistrationRequest,
     GraphQueryRequest,
+    LLMCacheRequest,
+    LLMUsageRequest,
+    LLMPerformanceRequest,
 )
 from app.services.postgres_client import PostgresClient, get_postgres_client
 from app.services.qdrant_client import QdrantMemoryClient, get_qdrant_client
@@ -111,9 +115,7 @@ async def clear_cache(
 
     except Exception as e:
         logger.error(f"Error clearing cache: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error clearing cache: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error clearing cache: {str(e)}")
 
 
 @app.get("/health")
@@ -140,9 +142,7 @@ async def health_check(
     try:
         qdrant_client = get_qdrant_client()
         qdrant_info = qdrant_client.get_collection_info()
-        services_status["qdrant"] = (
-            "connected" if qdrant_info else "disconnected"
-        )
+        services_status["qdrant"] = "connected" if qdrant_info else "disconnected"
         observability.active_connections.labels(database="qdrant").set(
             1 if qdrant_info else 0
         )
@@ -187,13 +187,9 @@ async def health_check(
         {
             "services": services_status,
             "integration_ready": integration_ready,
-            "qdrant_collection": qdrant_info
-            if "qdrant_info" in locals()
-            else None,
+            "qdrant_collection": qdrant_info if "qdrant_info" in locals() else None,
             "operational_mode": "full"
-            if all(
-                "connected" in status for status in services_status.values()
-            )
+            if all("connected" in status for status in services_status.values())
             else "degraded",
         }
     )
@@ -208,9 +204,7 @@ async def get_metrics(
     """Prometheus metrics endpoint for DevEnviro monitoring stack."""
     from fastapi.responses import PlainTextResponse
 
-    return PlainTextResponse(
-        observability.get_metrics(), media_type="text/plain"
-    )
+    return PlainTextResponse(observability.get_metrics(), media_type="text/plain")
 
 
 # Tool Management Endpoints
@@ -251,9 +245,7 @@ async def register_tool(
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error registering tool: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error registering tool: {str(e)}")
 
 
 @app.get("/tools/{tool_id}")
@@ -273,9 +265,7 @@ async def get_tool(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error retrieving tool: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error retrieving tool: {str(e)}")
 
 
 @app.get("/tools")
@@ -288,9 +278,7 @@ async def get_all_tools(
         return {"tools": tools, "count": len(tools)}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error retrieving tools: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error retrieving tools: {str(e)}")
 
 
 @app.get("/tools/search")
@@ -305,9 +293,7 @@ async def search_tools(
         return {"tools": tools, "count": len(tools), "query": query}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error searching tools: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error searching tools: {str(e)}")
 
 
 # Memory Management Endpoints
@@ -350,23 +336,17 @@ async def store_memory(
 
         # Step 1: Generate an embedding for the content (with caching)
         # First check if we have cached embedding for this content
-        cached_embedding = redis_client.get_cached_embedding(
-            store_request.content
-        )
+        cached_embedding = redis_client.get_cached_embedding(store_request.content)
         if cached_embedding:
             embedding = cached_embedding
-            observability.record_memory_operation(
-                "embedding_cache_hit", "success"
-            )
+            observability.record_memory_operation("embedding_cache_hit", "success")
         else:
             embedding = qdrant_client.generate_placeholder_embedding(
                 store_request.content
             )
             # Cache the generated embedding
             redis_client.cache_embedding(store_request.content, embedding)
-            observability.record_memory_operation(
-                "embedding_generation", "success"
-            )
+            observability.record_memory_operation("embedding_generation", "success")
 
         # Step 2: Store the full content/metadata in PostgreSQL to get a unique ID
         postgres_start = time.time()
@@ -475,9 +455,7 @@ async def store_memory(
 
         except Exception as e:
             # Neo4j integration failure shouldn't break the main storage flow
-            observability.record_memory_operation(
-                "neo4j_store", "failed", "tier3"
-            )
+            observability.record_memory_operation("neo4j_store", "failed", "tier3")
             observability.log_structured(
                 "warning",
                 "Neo4j integration failed",
@@ -513,9 +491,7 @@ async def store_memory(
             "neo4j": neo4j_info.get("memory_node_created", False),
         }
 
-        operational_mode = (
-            "full" if all(storage_status.values()) else "degraded"
-        )
+        operational_mode = "full" if all(storage_status.values()) else "degraded"
 
         return {
             "success": True,
@@ -530,9 +506,7 @@ async def store_memory(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error storing memory: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error storing memory: {str(e)}")
 
 
 @app.post("/memory/{tier}/store")
@@ -557,9 +531,7 @@ async def store_memory_by_tier(
 
             key = hashlib.md5(store_request.content.encode()).hexdigest()
             redis_client.store_memory(key, store_request.dict())
-            observability.record_memory_operation(
-                "redis_store", "success", "tier1"
-            )
+            observability.record_memory_operation("redis_store", "success", "tier1")
             return {
                 "success": True,
                 "tier": 1,
@@ -567,9 +539,7 @@ async def store_memory_by_tier(
                 "message": "Memory stored in Redis",
             }
         except Exception as e:
-            observability.record_memory_operation(
-                "redis_store", "failed", "tier1"
-            )
+            observability.record_memory_operation("redis_store", "failed", "tier1")
             raise HTTPException(
                 status_code=500,
                 detail=f"Error storing memory in Redis: {str(e)}",
@@ -638,9 +608,7 @@ async def store_memory_by_tier(
                     neo4j_info["error"] = "Neo4j driver not initialized"
             except Exception as e:
                 # Degrade gracefully if Neo4j fails
-                observability.record_memory_operation(
-                    "neo4j_store", "failed", "tier3"
-                )
+                observability.record_memory_operation("neo4j_store", "failed", "tier3")
                 neo4j_info["error"] = str(e)
 
             # Return success with degraded mode info if needed
@@ -656,9 +624,7 @@ async def store_memory_by_tier(
                 "message": f"Memory stored in {operational_mode} mode",
             }
         except Exception as e:
-            observability.record_memory_operation(
-                "neo4j_store", "failed", "tier3"
-            )
+            observability.record_memory_operation("neo4j_store", "failed", "tier3")
             raise HTTPException(
                 status_code=500,
                 detail=f"Error storing memory in Neo4j: {str(e)}",
@@ -729,9 +695,7 @@ async def query_memory(
                 }
 
         # Step 1: Generate an embedding for the query text (with caching)
-        cached_embedding = redis_client.get_cached_embedding(
-            query_request.query
-        )
+        cached_embedding = redis_client.get_cached_embedding(query_request.query)
         if cached_embedding:
             query_embedding = cached_embedding
         else:
@@ -750,9 +714,7 @@ async def query_memory(
 
         # Extract memory IDs from search results
         memory_ids = [
-            result["memory_id"]
-            for result in search_results
-            if result["memory_id"]
+            result["memory_id"] for result in search_results if result["memory_id"]
         ]
 
         # Step 3: Query PostgreSQL for tools that match the query context
@@ -769,18 +731,13 @@ async def query_memory(
 
             # Enrich memories with similarity scores from Qdrant
             memory_scores = {
-                result["memory_id"]: result["score"]
-                for result in search_results
+                result["memory_id"]: result["score"] for result in search_results
             }
             for memory in memories:
-                memory["similarity_score"] = memory_scores.get(
-                    memory["id"], 0.0
-                )
+                memory["similarity_score"] = memory_scores.get(memory["id"], 0.0)
 
             # Sort memories by similarity score (highest first)
-            memories.sort(
-                key=lambda x: x.get("similarity_score", 0.0), reverse=True
-            )
+            memories.sort(key=lambda x: x.get("similarity_score", 0.0), reverse=True)
 
         # Step 6: Cache query results in Redis for future requests
         if redis_client.is_connected() and memories:
@@ -804,9 +761,7 @@ async def query_memory(
         return response
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error querying memory: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error querying memory: {str(e)}")
 
 
 @app.get("/memory/search")
@@ -822,9 +777,7 @@ async def search_memories(
     try:
         # Create QueryRequest object and use the main query logic
         query_request = QueryRequest(query=query, top_k=top_k)
-        return await query_memory(
-            query_request, postgres_client, qdrant_client
-        )
+        return await query_memory(query_request, postgres_client, qdrant_client)
 
     except Exception as e:
         raise HTTPException(
@@ -851,9 +804,7 @@ async def query_graph(
             )
 
         if query_request.return_properties:
-            query += (
-                f" RETURN n.{', n.'.join(query_request.return_properties)}"
-            )
+            query += f" RETURN n.{', n.'.join(query_request.return_properties)}"
         else:
             query += " RETURN n"
 
@@ -863,9 +814,7 @@ async def query_graph(
         return {"result": result}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error querying graph: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error querying graph: {str(e)}")
 
 
 @app.get("/graph/related")
@@ -909,8 +858,237 @@ async def get_subgraph(
         result = neo4j_client.get_subgraph(node_id, depth)
         return {"result": result}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting subgraph: {str(e)}")
+
+
+# === LLM Cache Endpoints ===
+
+
+@app.post("/llm/cache")
+async def cache_llm_response(
+    request: LLMCacheRequest,
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Cache an LLM response for future retrieval.
+    This helps reduce API costs and improve response times.
+    """
+    try:
+        if not redis_client.is_connected():
+            raise HTTPException(
+                status_code=503, detail="Redis cache service unavailable"
+            )
+
+        success = redis_client.cache_llm_response(
+            model=request.model,
+            prompt=request.prompt,
+            response="",  # Will be set by the actual LLM call
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            metadata=request.metadata,
+        )
+
+        if success:
+            return {
+                "message": "LLM response cached successfully",
+                "model": request.model,
+                "cached": True,
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to cache LLM response")
+
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error getting subgraph: {str(e)}"
+            status_code=500, detail=f"Error caching LLM response: {str(e)}"
+        )
+
+
+@app.get("/llm/cache")
+async def get_cached_llm_response(
+    model: str,
+    prompt: str,
+    temperature: float = 0.7,
+    max_tokens: int = 1000,
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Retrieve a cached LLM response if available.
+    """
+    try:
+        if not redis_client.is_connected():
+            raise HTTPException(
+                status_code=503, detail="Redis cache service unavailable"
+            )
+
+        cached_response = redis_client.get_cached_llm_response(
+            model=model,
+            prompt=prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+        if cached_response:
+            return {
+                "cached": True,
+                "response": cached_response,
+                "message": "Cached response retrieved successfully",
+            }
+        else:
+            return {
+                "cached": False,
+                "response": None,
+                "message": "No cached response found",
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving cached LLM response: {str(e)}"
+        )
+
+
+@app.post("/llm/usage")
+async def track_llm_usage(
+    request: LLMUsageRequest,
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Track LLM token usage for cost monitoring and analytics.
+    """
+    try:
+        if not redis_client.is_connected():
+            raise HTTPException(
+                status_code=503, detail="Redis cache service unavailable"
+            )
+
+        success = redis_client.track_llm_usage(
+            model=request.model,
+            prompt_tokens=request.prompt_tokens,
+            completion_tokens=request.completion_tokens,
+            total_tokens=request.total_tokens,
+            request_id=request.request_id,
+        )
+
+        if success:
+            return {
+                "message": "LLM usage tracked successfully",
+                "model": request.model,
+                "tokens": request.total_tokens,
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to track LLM usage")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error tracking LLM usage: {str(e)}"
+        )
+
+
+@app.get("/llm/usage/stats")
+async def get_llm_usage_stats(
+    model: Optional[str] = None,
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Get LLM usage statistics for monitoring and cost analysis.
+    """
+    try:
+        if not redis_client.is_connected():
+            raise HTTPException(
+                status_code=503, detail="Redis cache service unavailable"
+            )
+
+        stats = redis_client.get_llm_usage_stats(model)
+
+        return {
+            "stats": stats,
+            "message": "LLM usage statistics retrieved successfully",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving LLM usage stats: {str(e)}"
+        )
+
+
+@app.post("/llm/performance")
+async def track_llm_performance(
+    request: LLMPerformanceRequest,
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Track LLM model performance metrics.
+    """
+    try:
+        if not redis_client.is_connected():
+            raise HTTPException(
+                status_code=503, detail="Redis cache service unavailable"
+            )
+
+        success = redis_client.cache_model_performance(
+            model=request.model,
+            operation=request.operation,
+            response_time=request.response_time,
+            success=request.success,
+            error_message=request.error_message,
+        )
+
+        if success:
+            return {
+                "message": "LLM performance tracked successfully",
+                "model": request.model,
+                "operation": request.operation,
+            }
+        else:
+            raise HTTPException(
+                status_code=500, detail="Failed to track LLM performance"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error tracking LLM performance: {str(e)}"
+        )
+
+
+@app.get("/llm/performance/stats")
+async def get_llm_performance_stats(
+    model: str,
+    operation: str,
+    redis_client: RedisClient = Depends(get_redis_client),
+):
+    """
+    Get LLM model performance statistics.
+    """
+    try:
+        if not redis_client.is_connected():
+            raise HTTPException(
+                status_code=503, detail="Redis cache service unavailable"
+            )
+
+        stats = redis_client.get_model_performance(model, operation)
+
+        if "error" in stats:
+            raise HTTPException(status_code=404, detail=stats["error"])
+
+        return {
+            "stats": stats,
+            "message": "LLM performance statistics retrieved successfully",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving LLM performance stats: {str(e)}"
         )
 
 

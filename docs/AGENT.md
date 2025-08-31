@@ -34,19 +34,17 @@ The system's core is a collection of containerized microservices that enable the
 
 ## Development Commands
 
-The project is designed to be run using Docker and Docker Compose. Environment variables are managed with **dotenvx**.
+The project is designed to be run using Docker and Docker Compose. Environment variables are managed with standard .env files.
 
 ### Environment Setup
 
 ```bash
-# Install the environment management tool (one-time setup)
-npm install -g @dotenvx/dotenvx
+# Environment variables are configured in .env files
+# For Docker deployment: .env.docker
+# For local development: .env
 
-# Set required secrets (you will be prompted for the value)
-# Example for database user:
-dotenvx set POSTGRES_USER myuser
-
-````
+# Edit the appropriate .env file with your configuration values
+```
 
 ### Running the Full Stack
 

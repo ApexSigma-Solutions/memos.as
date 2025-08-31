@@ -5,12 +5,11 @@ This service provides comprehensive database health monitoring and graceful
 fallbacks to ensure memOS.as can operate even when some databases are unavailable.
 """
 
-import os
 import logging
-from typing import Dict, Any, Optional
-from contextlib import contextmanager
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 class DatabaseHealthManager:
     """Manages database health checks and provides fallback mechanisms."""
@@ -20,13 +19,14 @@ class DatabaseHealthManager:
             "postgres": {"status": "unknown", "error": None},
             "qdrant": {"status": "unknown", "error": None},
             "redis": {"status": "unknown", "error": None},
-            "neo4j": {"status": "unknown", "error": None}
+            "neo4j": {"status": "unknown", "error": None},
         }
 
     def check_postgres_health(self) -> Dict[str, Any]:
         """Check PostgreSQL connection health."""
         try:
             from .postgres_client import get_postgres_client
+
             client = get_postgres_client()
 
             # Try a simple query
@@ -46,10 +46,11 @@ class DatabaseHealthManager:
         """Check Qdrant connection health."""
         try:
             from .qdrant_client import get_qdrant_client
+
             client = get_qdrant_client()
 
             # Try to get collection info
-            info = client.get_collection_info()
+            client.get_collection_info()
 
             self.health_status["qdrant"] = {"status": "healthy", "error": None}
             logger.info("Qdrant connection healthy")
@@ -64,6 +65,7 @@ class DatabaseHealthManager:
         """Check Redis connection health."""
         try:
             from .redis_client import get_redis_client
+
             client = get_redis_client()
 
             # Try a simple ping
@@ -82,10 +84,13 @@ class DatabaseHealthManager:
         """Check Neo4j connection health."""
         try:
             from .neo4j_client import get_neo4j_client
+
             client = get_neo4j_client()
 
             if client.driver is None:
-                raise Exception("Neo4j driver not initialized - check connection settings")
+                raise Exception(
+                    "Neo4j driver not initialized - check connection settings"
+                )
 
             # Try a simple query
             with client.get_session() as session:
@@ -130,13 +135,15 @@ class DatabaseHealthManager:
             "use_embeddings": operational["postgres"] and operational["qdrant"],
             "use_caching": operational["redis"],
             "use_knowledge_graph": operational["neo4j"],
-            "degraded_mode": not all(operational.values())
+            "degraded_mode": not all(operational.values()),
         }
 
         return strategy
 
+
 # Global health manager instance
 health_manager = DatabaseHealthManager()
+
 
 def get_health_manager() -> DatabaseHealthManager:
     """Get the global health manager instance."""

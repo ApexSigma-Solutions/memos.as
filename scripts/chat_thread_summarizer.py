@@ -14,7 +14,7 @@ import json
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 # Add app to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
@@ -32,10 +32,7 @@ class MemOSThreadSummarizer:
         self.session_id = f"memos_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
     async def summarize_chat_thread(
-        self,
-        chat_file_path: str,
-        output_dir: str = None,
-        save_progress: bool = True
+        self, chat_file_path: str, output_dir: str = None, save_progress: bool = True
     ) -> Dict[str, Any]:
         """
         Summarize a chat thread with MemOS context.
@@ -86,12 +83,12 @@ class MemOSThreadSummarizer:
         print(f"Loading chat thread: {file_path}")
 
         try:
-            content = file_path.read_text(encoding='utf-8', errors='ignore')
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
 
             # Try to parse as JSON first
             try:
                 chat_data = json.loads(content)
-                print(f"   Format: JSON")
+                print("   Format: JSON")
             except json.JSONDecodeError:
                 # Treat as plain text and structure it
                 chat_data = {
@@ -99,9 +96,9 @@ class MemOSThreadSummarizer:
                     "content": content,
                     "lines": content.splitlines(),
                     "word_count": len(content.split()),
-                    "char_count": len(content)
+                    "char_count": len(content),
                 }
-                print(f"   Format: Plain text")
+                print("   Format: Plain text")
 
             print(f"   Size: {file_path.stat().st_size} bytes")
 
@@ -110,7 +107,7 @@ class MemOSThreadSummarizer:
                 "file_path": str(file_path),
                 "file_size": file_path.stat().st_size,
                 "loaded_at": datetime.now().isoformat(),
-                "content_hash": hashlib.sha256(content.encode()).hexdigest()[:16]
+                "content_hash": hashlib.sha256(content.encode()).hexdigest()[:16],
             }
 
             return chat_data
@@ -133,9 +130,13 @@ class MemOSThreadSummarizer:
                     ["git", "status", "--porcelain"],
                     capture_output=True,
                     text=True,
-                    cwd=Path(__file__).parent.parent
+                    cwd=Path(__file__).parent.parent,
                 )
-                git_changes = git_status.stdout.strip().splitlines() if git_status.returncode == 0 else []
+                git_changes = (
+                    git_status.stdout.strip().splitlines()
+                    if git_status.returncode == 0
+                    else []
+                )
             except:
                 git_changes = ["git_not_available"]
 
@@ -145,31 +146,57 @@ class MemOSThreadSummarizer:
                     ["git", "log", "--oneline", "-5"],
                     capture_output=True,
                     text=True,
-                    cwd=Path(__file__).parent.parent
+                    cwd=Path(__file__).parent.parent,
                 )
-                recent_commits = git_log.stdout.strip().splitlines() if git_log.returncode == 0 else []
-            except:
-                recent_commits = ["git_log_not_available"]
+                recent_commits = (
+                    git_log.stdout.strip().splitlines()
+                    if git_log.returncode == 0
+                    else []
+                )
+            except Exception as e:
+                recent_commits = [f"git_log_not_available: {e}"]
 
             # Get MemOS containers specifically
             try:
                 docker_ps = subprocess.run(
-                    ["docker", "ps", "--filter", "name=memos", "--format", "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"],
+                    [
+                        "docker",
+                        "ps",
+                        "--filter",
+                        "name=memos",
+                        "--format",
+                        "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}",
+                    ],
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
-                memos_containers = docker_ps.stdout.strip().splitlines() if docker_ps.returncode == 0 else []
+                memos_containers = (
+                    docker_ps.stdout.strip().splitlines()
+                    if docker_ps.returncode == 0
+                    else []
+                )
             except:
                 memos_containers = ["docker_not_available"]
 
             # Get network status
             try:
                 network_inspect = subprocess.run(
-                    ["docker", "network", "inspect", "apexsigma_net", "--format", "{{range .Containers}}{{.Name}} {{end}}"],
+                    [
+                        "docker",
+                        "network",
+                        "inspect",
+                        "apexsigma_net",
+                        "--format",
+                        "{{range .Containers}}{{.Name}} {{end}}",
+                    ],
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
-                network_containers = network_inspect.stdout.strip().split() if network_inspect.returncode == 0 else []
+                network_containers = (
+                    network_inspect.stdout.strip().split()
+                    if network_inspect.returncode == 0
+                    else []
+                )
             except:
                 network_containers = ["network_not_available"]
 
@@ -178,7 +205,7 @@ class MemOSThreadSummarizer:
                 "postgres_active": "postgres" in " ".join(memos_containers).lower(),
                 "redis_active": "redis" in " ".join(network_containers).lower(),
                 "qdrant_active": "qdrant" in " ".join(network_containers).lower(),
-                "neo4j_active": "neo4j" in " ".join(network_containers).lower()
+                "neo4j_active": "neo4j" in " ".join(network_containers).lower(),
             }
 
             snapshot = {
@@ -191,15 +218,17 @@ class MemOSThreadSummarizer:
                     "memos_containers": memos_containers,
                     "network_containers": network_containers,
                     "python_version": sys.version,
-                    "working_directory": str(Path.cwd())
+                    "working_directory": str(Path.cwd()),
                 },
                 "memos_status": {
-                    "containers_running": len([c for c in memos_containers if "Up" in c]),
+                    "containers_running": len(
+                        [c for c in memos_containers if "Up" in c]
+                    ),
                     "network_unified": "apexsigma_net" in " ".join(network_containers),
                     "memory_tier_ready": all(memory_status.values()),
                     "storage_systems": memory_status,
-                    "memory_protocol": "active"
-                }
+                    "memory_protocol": "active",
+                },
             }
 
             print(f"   Git changes: {len(git_changes)}")
@@ -215,10 +244,12 @@ class MemOSThreadSummarizer:
                 "session_id": self.session_id,
                 "service": "memos.as",
                 "environment": {"error": str(e)},
-                "memos_status": {"error": "could_not_determine"}
+                "memos_status": {"error": "could_not_determine"},
             }
 
-    async def _generate_memory_summary(self, chat_data: Dict[str, Any], env_snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_memory_summary(
+        self, chat_data: Dict[str, Any], env_snapshot: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Generate summary with focus on memory operations."""
 
         print("Generating MemOS memory-focused summary...")
@@ -238,7 +269,8 @@ class MemOSThreadSummarizer:
             "total_lines": len(lines),
             "total_words": len(content.split()),
             "total_characters": len(content),
-            "estimated_reading_time_minutes": len(content.split()) / 200,  # 200 wpm average
+            "estimated_reading_time_minutes": len(content.split())
+            / 200,  # 200 wpm average
         }
 
         # MemOS-specific keywords
@@ -260,18 +292,37 @@ class MemOSThreadSummarizer:
             "cache": content_lower.count("cache"),
             "retrieve": content_lower.count("retrieve"),
             "store": content_lower.count("store"),
-            "query": content_lower.count("query")
+            "query": content_lower.count("query"),
         }
 
         # Find memory-related sections
         important_lines = []
         for i, line in enumerate(lines):
             line_lower = line.lower()
-            if any(keyword in line_lower for keyword in ["memory", "memos", "memory", "context", "storage", "retrieve", "store", "error", "success", "complete", "failed"]):
-                important_lines.append({
-                    "line_number": i + 1,
-                    "content": line.strip()[:100] + "..." if len(line.strip()) > 100 else line.strip()
-                })
+            if any(
+                keyword in line_lower
+                for keyword in [
+                    "memory",
+                    "memos",
+                    "memory",
+                    "context",
+                    "storage",
+                    "retrieve",
+                    "store",
+                    "error",
+                    "success",
+                    "complete",
+                    "failed",
+                ]
+            ):
+                important_lines.append(
+                    {
+                        "line_number": i + 1,
+                        "content": line.strip()[:100] + "..."
+                        if len(line.strip()) > 100
+                        else line.strip(),
+                    }
+                )
 
         # Generate summary
         summary = {
@@ -284,17 +335,25 @@ class MemOSThreadSummarizer:
             "memos_keywords": memos_keywords,
             "important_sections": important_lines[:12],  # Top 12 for MemOS
             "environment_snapshot": env_snapshot,
-            "summary_text": self._generate_memos_summary_text(analysis, memos_keywords, important_lines),
-            "recommendations": self._generate_memos_recommendations(memos_keywords, env_snapshot)
+            "summary_text": self._generate_memos_summary_text(
+                analysis, memos_keywords, important_lines
+            ),
+            "recommendations": self._generate_memos_recommendations(
+                memos_keywords, env_snapshot
+            ),
         }
 
         print(f"   Content analyzed: {analysis['total_words']} words")
         print(f"   Memory-related sections found: {len(important_lines)}")
-        print(f"   Top MemOS keywords: {sorted(memos_keywords.items(), key=lambda x: x[1], reverse=True)[:3]}")
+        print(
+            f"   Top MemOS keywords: {sorted(memos_keywords.items(), key=lambda x: x[1], reverse=True)[:3]}"
+        )
 
         return summary
 
-    def _generate_memos_summary_text(self, analysis: Dict, keywords: Dict, important_lines: List) -> str:
+    def _generate_memos_summary_text(
+        self, analysis: Dict, keywords: Dict, important_lines: List
+    ) -> str:
         """Generate MemOS-focused summary text."""
 
         top_keywords = sorted(keywords.items(), key=lambda x: x[1], reverse=True)[:3]
@@ -316,37 +375,55 @@ Important Memory Operations:
 
         return summary_text.strip()
 
-    def _generate_memos_recommendations(self, keywords: Dict, env_snapshot: Dict) -> List[str]:
+    def _generate_memos_recommendations(
+        self, keywords: Dict, env_snapshot: Dict
+    ) -> List[str]:
         """Generate MemOS-specific recommendations."""
 
         recommendations = []
 
         # Memory-focused recommendations
         if keywords.get("memory", 0) > 5:
-            recommendations.append("Heavy memory operations detected - review memory protocol usage")
+            recommendations.append(
+                "Heavy memory operations detected - review memory protocol usage"
+            )
 
         if keywords.get("context", 0) > 3:
-            recommendations.append("Context operations active - consider context database optimization")
+            recommendations.append(
+                "Context operations active - consider context database optimization"
+            )
 
         if keywords.get("vector", 0) > 2:
-            recommendations.append("Vector operations noted - check Qdrant performance metrics")
+            recommendations.append(
+                "Vector operations noted - check Qdrant performance metrics"
+            )
 
         if keywords.get("retrieve", 0) + keywords.get("store", 0) > 5:
-            recommendations.append("High storage activity - monitor tiered memory performance")
+            recommendations.append(
+                "High storage activity - monitor tiered memory performance"
+            )
 
         # Environment-based recommendations
         if env_snapshot.get("memos_status", {}).get("memory_tier_ready"):
-            recommendations.append("All memory tiers operational - optimal for complex memory operations")
+            recommendations.append(
+                "All memory tiers operational - optimal for complex memory operations"
+            )
 
         if not env_snapshot.get("memos_status", {}).get("memory_tier_ready"):
-            recommendations.append("Memory tiers incomplete - verify Postgres/Redis/Qdrant/Neo4j connectivity")
+            recommendations.append(
+                "Memory tiers incomplete - verify Postgres/Redis/Qdrant/Neo4j connectivity"
+            )
 
         if len(env_snapshot.get("environment", {}).get("git_changes", [])) > 6:
-            recommendations.append("Significant memory system changes - consider memory protocol validation")
+            recommendations.append(
+                "Significant memory system changes - consider memory protocol validation"
+            )
 
         return recommendations
 
-    async def _save_summary_to_file(self, summary: Dict[str, Any], output_dir: str) -> None:
+    async def _save_summary_to_file(
+        self, summary: Dict[str, Any], output_dir: str
+    ) -> None:
         """Save summary to file."""
 
         output_path = Path(output_dir)
@@ -356,27 +433,29 @@ Important Memory Operations:
 
         # Save as JSON
         json_file = output_path / f"memos_chat_summary_{timestamp}.json"
-        with open(json_file, 'w', encoding='utf-8') as f:
+        with open(json_file, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
 
         # Save as markdown
         md_file = output_path / f"memos_chat_summary_{timestamp}.md"
-        with open(md_file, 'w', encoding='utf-8') as f:
-            f.write(f"# MemOS Chat Thread Summary\n\n")
+        with open(md_file, "w", encoding="utf-8") as f:
+            f.write("# MemOS Chat Thread Summary\n\n")
             f.write(f"**Generated**: {summary['generated_at']}\\n")
             f.write(f"**Session**: {summary['session_id']}\\n")
             f.write(f"**Service**: {summary['service']}\\n")
             f.write(f"**Source**: {summary['source_file']}\\n\\n")
-            f.write(summary['summary_text'])
+            f.write(summary["summary_text"])
             f.write("\\n\\n## MemOS Recommendations\\n\\n")
-            for rec in summary['recommendations']:
+            for rec in summary["recommendations"]:
                 f.write(f"- {rec}\\n")
 
-        print(f"MemOS summary saved to:")
+        print("MemOS summary saved to:")
         print(f"   JSON: {json_file}")
         print(f"   Markdown: {md_file}")
 
-    async def _save_progress_to_memos(self, summary: Dict[str, Any], env_snapshot: Dict[str, Any]) -> None:
+    async def _save_progress_to_memos(
+        self, summary: Dict[str, Any], env_snapshot: Dict[str, Any]
+    ) -> None:
         """Save progress using memory protocol."""
 
         print("Saving MemOS progress using memory protocol...")
@@ -386,38 +465,39 @@ Important Memory Operations:
             import httpx
 
             async with httpx.AsyncClient(timeout=30.0) as client:
-
                 # Prepare MemOS-specific progress log
                 progress_data = {
                     "content": f"MEMOS CHAT SUMMARY: Processed {summary['analysis']['total_words']} words with memory operation focus. Key topics: {', '.join([k for k, v in summary['memos_keywords'].items() if v > 0][:3])}. Memory tier snapshot captured - {sum(env_snapshot['memos_status'].get('storage_systems', {}).values())}/4 systems active.",
                     "metadata": {
                         "source": "MemOSThreadSummarizer",
                         "service": "memos.as",
-                        "session_id": summary['session_id'],
+                        "session_id": summary["session_id"],
                         "event_type": "memos_chat_summary_completed",
-                        "timestamp": summary['generated_at'],
+                        "timestamp": summary["generated_at"],
                         "priority": "HIGH",
-                        "summary_stats": summary['analysis'],
-                        "memos_keywords": summary['memos_keywords'],
+                        "summary_stats": summary["analysis"],
+                        "memos_keywords": summary["memos_keywords"],
                         "environment_snapshot": env_snapshot,
-                        "source_file": summary['source_file'],
-                        "source_hash": summary['source_hash'],
-                        "recommendations": summary['recommendations'],
+                        "source_file": summary["source_file"],
+                        "source_hash": summary["source_hash"],
+                        "recommendations": summary["recommendations"],
                         "memory_protocol": True,
-                        "memory_focus": True
-                    }
+                        "memory_focus": True,
+                    },
                 }
 
                 # Send to memOS.as via memory
                 response = await client.post(
                     f"{self.memos_base_url}/memory/store",
                     json=progress_data,
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 )
 
                 if response.status_code == 200:
                     result = response.json()
-                    print(f"SUCCESS: MemOS progress saved via memory (Memory ID: {result.get('memory_id')})")
+                    print(
+                        f"SUCCESS: MemOS progress saved via memory (Memory ID: {result.get('memory_id')})"
+                    )
                 else:
                     print(f"WARNING: Failed to save via memory: {response.status_code}")
 
@@ -436,30 +516,25 @@ MemOS Examples:
   python chat_thread_summarizer.py memory_chat.txt                   # Summarize memory operations
   python chat_thread_summarizer.py chat.txt --output ./summaries     # Save to custom directory
   python chat_thread_summarizer.py chat.txt --no-progress            # Skip memory logging
-        """
+        """,
     )
 
-    parser.add_argument(
-        "chat_file",
-        help="Path to chat thread file to summarize"
-    )
+    parser.add_argument("chat_file", help="Path to chat thread file to summarize")
 
     parser.add_argument(
         "--output",
         metavar="DIR",
-        help="Output directory for summary files (default: ./docs/summaries/)"
+        help="Output directory for summary files (default: ./docs/summaries/)",
     )
 
     parser.add_argument(
-        "--no-progress",
-        action="store_true",
-        help="Skip saving progress to memOS.as"
+        "--no-progress", action="store_true", help="Skip saving progress to memOS.as"
     )
 
     parser.add_argument(
         "--memos-url",
         default="http://devenviro_memos_api:8090",
-        help="memOS.as base URL (default: http://devenviro_memos_api:8090)"
+        help="memOS.as base URL (default: http://devenviro_memos_api:8090)",
     )
 
     args = parser.parse_args()
@@ -476,7 +551,7 @@ MemOS Examples:
         summary = await summarizer.summarize_chat_thread(
             chat_file_path=args.chat_file,
             output_dir=args.output,
-            save_progress=not args.no_progress
+            save_progress=not args.no_progress,
         )
 
         print()
@@ -493,6 +568,7 @@ MemOS Examples:
     except Exception as e:
         print(f"\\nERROR: MemOS summarization failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

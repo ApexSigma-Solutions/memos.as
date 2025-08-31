@@ -4,7 +4,7 @@ Enhanced observability decorators and utilities for memOS LLM operations.
 
 import functools
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 from app.services.observability import get_observability
 
 
@@ -40,7 +40,7 @@ def trace_llm_operation(
                 # Start observability tracing
                 with obs.trace_operation(
                     op_name, operation=op_name, model=model, user_id=user_id
-                ) as span:
+                ):
                     result = await func(*args, **kwargs)
 
                     # Record successful operation
@@ -48,17 +48,13 @@ def trace_llm_operation(
 
                     # Trace with Langfuse if available
                     if include_io and obs.langfuse:
-                        input_data = (
-                            str(args[1:]) if len(args) > 1 else str(kwargs)
-                        )
+                        input_data = str(args[1:]) if len(args) > 1 else str(kwargs)
                         output_data = str(result) if result else "No output"
 
                         obs.trace_llm_call(
                             model=model or "unknown",
                             input_text=input_data[:1000],  # Limit input size
-                            output_text=output_data[
-                                :1000
-                            ],  # Limit output size
+                            output_text=output_data[:1000],  # Limit output size
                             user_id=user_id,
                             session_id=session_id,
                             operation=op_name,
@@ -70,13 +66,11 @@ def trace_llm_operation(
                         )
 
                     # Record metrics
-                    obs.record_memory_operation(
-                        op_name, "success", duration=duration
-                    )
+                    obs.record_memory_operation(op_name, "success", duration=duration)
 
                     obs.log_structured(
                         "info",
-                        f"LLM operation completed",
+                        "LLM operation completed",
                         operation=op_name,
                         duration=duration,
                         user_id=user_id,
@@ -87,13 +81,11 @@ def trace_llm_operation(
             except Exception as e:
                 # Record failed operation
                 duration = time.time() - start_time
-                obs.record_memory_operation(
-                    op_name, "error", duration=duration
-                )
+                obs.record_memory_operation(op_name, "error", duration=duration)
 
                 obs.log_structured(
                     "error",
-                    f"LLM operation failed",
+                    "LLM operation failed",
                     operation=op_name,
                     error=str(e),
                     duration=duration,
@@ -119,15 +111,13 @@ def trace_llm_operation(
             try:
                 with obs.trace_operation(
                     op_name, operation=op_name, model=model, user_id=user_id
-                ) as span:
+                ):
                     result = func(*args, **kwargs)
 
                     duration = time.time() - start_time
 
                     if include_io and obs.langfuse:
-                        input_data = (
-                            str(args[1:]) if len(args) > 1 else str(kwargs)
-                        )
+                        input_data = str(args[1:]) if len(args) > 1 else str(kwargs)
                         output_data = str(result) if result else "No output"
 
                         obs.trace_llm_call(
@@ -144,13 +134,11 @@ def trace_llm_operation(
                             },
                         )
 
-                    obs.record_memory_operation(
-                        op_name, "success", duration=duration
-                    )
+                    obs.record_memory_operation(op_name, "success", duration=duration)
 
                     obs.log_structured(
                         "info",
-                        f"LLM operation completed",
+                        "LLM operation completed",
                         operation=op_name,
                         duration=duration,
                         user_id=user_id,
@@ -160,13 +148,11 @@ def trace_llm_operation(
 
             except Exception as e:
                 duration = time.time() - start_time
-                obs.record_memory_operation(
-                    op_name, "error", duration=duration
-                )
+                obs.record_memory_operation(op_name, "error", duration=duration)
 
                 obs.log_structured(
                     "error",
-                    f"LLM operation failed",
+                    "LLM operation failed",
                     operation=op_name,
                     error=str(e),
                     duration=duration,
@@ -195,21 +181,17 @@ def trace_memory_operation(operation_type: str = None):
             start_time = time.time()
 
             try:
-                with obs.trace_operation(f"memory-{op_type}") as span:
+                with obs.trace_operation(f"memory-{op_type}"):
                     result = await func(*args, **kwargs)
 
                     duration = time.time() - start_time
-                    obs.record_memory_operation(
-                        op_type, "success", duration=duration
-                    )
+                    obs.record_memory_operation(op_type, "success", duration=duration)
 
                     return result
 
-            except Exception as e:
+            except Exception:
                 duration = time.time() - start_time
-                obs.record_memory_operation(
-                    op_type, "error", duration=duration
-                )
+                obs.record_memory_operation(op_type, "error", duration=duration)
                 raise
 
         @functools.wraps(func)
@@ -220,21 +202,17 @@ def trace_memory_operation(operation_type: str = None):
             start_time = time.time()
 
             try:
-                with obs.trace_operation(f"memory-{op_type}") as span:
+                with obs.trace_operation(f"memory-{op_type}"):
                     result = func(*args, **kwargs)
 
                     duration = time.time() - start_time
-                    obs.record_memory_operation(
-                        op_type, "success", duration=duration
-                    )
+                    obs.record_memory_operation(op_type, "success", duration=duration)
 
                     return result
 
-            except Exception as e:
+            except Exception:
                 duration = time.time() - start_time
-                obs.record_memory_operation(
-                    op_type, "error", duration=duration
-                )
+                obs.record_memory_operation(op_type, "error", duration=duration)
                 raise
 
         if hasattr(func, "__await__"):
@@ -336,7 +314,7 @@ class ObservabilityContext:
             )
             self.obs.log_structured(
                 "info",
-                f"Operation completed",
+                "Operation completed",
                 operation=self.operation_name,
                 duration=duration,
                 user_id=self.user_id,
@@ -348,7 +326,7 @@ class ObservabilityContext:
             )
             self.obs.log_structured(
                 "error",
-                f"Operation failed",
+                "Operation failed",
                 operation=self.operation_name,
                 error=str(exc_val),
                 duration=duration,
