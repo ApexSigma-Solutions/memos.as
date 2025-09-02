@@ -25,7 +25,9 @@ class Neo4jClient:
 
     def __init__(self):
         self.uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-        self.username = os.environ.get("NEO4J_USERNAME", "neo4j")
+        self.username = os.environ.get(
+            "NEO4J_USER", os.environ.get("NEO4J_USERNAME", "neo4j")
+        )
         self.password = os.environ.get("NEO4J_PASSWORD", "password")
 
         self.driver: Optional[Driver] = None
@@ -63,9 +65,7 @@ class Neo4jClient:
                     print(
                         f"❌ Failed to connect to Neo4j after {max_retries} attempts: {e}"
                     )
-                    print(
-                        "💡 Ensure Neo4j is running: docker-compose up -d neo4j"
-                    )
+                    print("💡 Ensure Neo4j is running: docker-compose up -d neo4j")
                     self.driver = None
 
     def _create_constraints(self):
@@ -290,9 +290,7 @@ class Neo4jClient:
                 for record in result
             ]
 
-    def find_tools_by_concept(
-        self, concept: str, limit: int = 5
-    ) -> List[Dict]:
+    def find_tools_by_concept(self, concept: str, limit: int = 5) -> List[Dict]:
         """Find tools related to a concept."""
         with self.get_session() as session:
             result = session.run(
@@ -390,9 +388,7 @@ class Neo4jClient:
         # Remove duplicates and return first 10
         return list(set(concepts))[:10]
 
-    def run_cypher_query(
-        self, query: str, parameters: Dict = None
-    ) -> List[Dict]:
+    def run_cypher_query(self, query: str, parameters: Dict = None) -> List[Dict]:
         """Execute a raw Cypher query."""
         parameters = parameters or {}
 
@@ -450,10 +446,7 @@ class Neo4jClient:
                         )
 
         return {
-            "nodes": [
-                {"id": node_id, "properties": props}
-                for node_id, props in nodes
-            ],
+            "nodes": [{"id": node_id, "properties": props} for node_id, props in nodes],
             "relationships": relationships,
         }
 

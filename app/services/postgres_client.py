@@ -3,8 +3,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import (JSON, Column, DateTime, Integer, String, Text,
-                        create_engine)
+from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -57,16 +56,23 @@ class PostgresClient:
     """
 
     def __init__(self):
-        self.host = os.environ.get("POSTGRES_HOST", "localhost")
-        self.port = int(os.environ.get("POSTGRES_PORT", 5432))
-        self.database = os.environ.get("POSTGRES_DB", "memos_db")
-        self.user = os.environ.get("POSTGRES_USER", "postgres")
-        self.password = os.environ.get("POSTGRES_PASSWORD", "password")
+        # Check for DATABASE_URL first (Docker override)
+        self.database_url = os.environ.get("DATABASE_URL")
 
-        self.database_url = (
-            f"postgresql://{self.user}:{self.password}@"
-            f"{self.host}:{self.port}/{self.database}"
-        )
+        if not self.database_url:
+            # Fall back to individual environment variables
+            self.host = os.environ.get("POSTGRES_HOST", "localhost")
+            self.port = int(os.environ.get("POSTGRES_PORT", 5432))
+            self.database = os.environ.get("POSTGRES_DB", "memos")
+            self.user = os.environ.get("POSTGRES_USER", "apexsigma_user")
+            self.password = os.environ.get(
+                "POSTGRES_PASSWORD", "your_secure_postgres_password_here"
+            )
+
+            self.database_url = (
+                f"postgresql://{self.user}:{self.password}@"
+                f"{self.host}:{self.port}/{self.database}"
+            )
 
         self.engine = create_engine(self.database_url, echo=False)
         self.SessionLocal = sessionmaker(
@@ -125,6 +131,7 @@ class PostgresClient:
         except Exception as e:
             print(f"❌ Error storing memory in PostgreSQL: {e}")
             import traceback
+
             traceback.print_exc()
             return None
 
