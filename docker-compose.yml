@@ -18,6 +18,28 @@ services:
     extra_hosts:
       - "devenviro_postgres:172.22.0.10"
 
+  memos-mcp-server:
+    build: .
+    container_name: memos_mcp_server
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env.docker
+    environment:
+      - MEMOS_BASE_URL=http://memos-api:8090
+      - JWT_SECRET_KEY=apexsigma-mcp-secret-key-2025
+      # Langfuse observability integration
+      - LANGFUSE_PUBLIC_KEY=pk-lf-bba97616-6c46-4d0d-b3a1-2b3cb9e03ee5
+      - LANGFUSE_SECRET_KEY=sk-lf-ad7e9785-fb81-4340-aa6a-4cc265aec073
+      - LANGFUSE_HOST=https://cloud.langfuse.com
+    networks:
+      apexsigma_net:
+      mcp_net:
+        ipv4_address: 172.28.0.10
+    command: ["python", "-m", "app.mcp_server"]
+    depends_on:
+      - memos-api
+
   test-runner:
     build: .
     env_file:
@@ -29,7 +51,27 @@ services:
       - apexsigma_net
     command: ["pytest", "-v", "/code/app/tests/"]
 
+  memos-worker:
+    build: .
+    container_name: devenviro_memos_worker
+    env_file:
+      - .env.docker
+    environment:
+      - NEO4J_URI=bolt://devenviro_neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
+    networks:
+      - apexsigma_net
+    command: ["python", "-m", "app.background_worker"]
+    depends_on:
+      - memos-api
+
 networks:
   apexsigma_net:
     # This tells Docker Compose to use an existing network
     external: true
+  mcp_net:
+    external: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

@@ -98,10 +98,6 @@
         " M app/services/postgres_client.py",
         " M app/services/qdrant_client.py",
         " M app/services/redis_client.py",
-        " M context_portal/alembic/versions/__pycache__/2025_06_17_initial_schema.cpython-313.pyc",
-        " M context_portal/conport_vector_data/5b4b33a0-b5b7-4a85-87cf-4de5fc576a39/length.bin",
-        " M context_portal/conport_vector_data/chroma.sqlite3",
-        " M context_portal/context.db",
         " M docker-compose.yml",
         " D log_progress.py",
         " D log_tiered_storage_progress.py",
@@ -126,6 +122,7 @@
         "?? scripts/log_tiered_storage_progress.py",
         "?? scripts/log_troubleshooting.py"
       ],
+          "(removed) context_portal entries",
       "recent_commits": [
         "221fa61 feat: Implement and test tiered storage endpoints",
         "c68f36e Merge branch 'feature/memos-core-implementation' of https://github.com/ApexSigma-Solutions/memos.as into feature/memos-core-implementation",

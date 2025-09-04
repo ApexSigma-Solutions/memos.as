@@ -63,6 +63,7 @@ class QdrantMemoryClient:
         self,
         embedding: List[float],
         memory_id: int,
+        agent_id: str = "default_agent",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
@@ -71,6 +72,7 @@ class QdrantMemoryClient:
         Args:
             embedding: Vector embedding of the memory content
             memory_id: PostgreSQL memory ID for linking
+            agent_id: The agent ID to associate with the memory
             metadata: Optional metadata to store with the vector
 
         Returns:
@@ -80,8 +82,8 @@ class QdrantMemoryClient:
             # Generate unique point ID
             point_id = str(uuid.uuid4())
 
-            # Prepare payload with PostgreSQL memory ID
-            payload = {"memory_id": memory_id, "metadata": metadata or {}}
+            # Prepare payload with PostgreSQL memory ID and agent_id
+            payload = {"memory_id": memory_id, "agent_id": agent_id, "metadata": metadata or {}}
 
             # Create point
             point = PointStruct(id=point_id, vector=embedding, payload=payload)
@@ -96,7 +98,7 @@ class QdrantMemoryClient:
             return None
 
     def search_similar_memories(
-        self, query_embedding: List[float], top_k: int = 5, score_threshold: float = 0.0
+        self, query_embedding: List[float], top_k: int = 5, score_threshold: float = 0.0, agent_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Perform semantic search to find similar memories.
@@ -105,14 +107,27 @@ class QdrantMemoryClient:
             query_embedding: Vector embedding of the query
             top_k: Number of similar memories to return
             score_threshold: Minimum similarity score threshold
+            agent_id: Optional agent ID to filter memories
 
         Returns:
             List of search results with memory_ids and scores
         """
         try:
+            query_filter = None
+            if agent_id:
+                query_filter = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="agent_id",
+                            match=models.MatchValue(value=agent_id)
+                        )
+                    ]
+                )
+
             search_result = self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
+                query_filter=query_filter,
                 limit=top_k,
                 score_threshold=score_threshold,
                 with_payload=True,

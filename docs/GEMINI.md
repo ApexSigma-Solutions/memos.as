@@ -28,7 +28,7 @@ The project is structured as a standard FastAPI application:
     *   `models.py`: Contains the Pydantic data models for API requests and responses.
     *   `services/`: Contains the client modules for interacting with external services (Redis, PostgreSQL, Qdrant).
     *   `main.py`: (To be created) The main FastAPI application file.
-*   `context_portal/`: Contains the Alembic database migration scripts.
+*   (removed) `context_portal/`
 *   `.venv/`: The Python virtual environment.
 *   `requirements.txt`: The list of Python dependencies.
 *   `GEMINI.md`: This file, containing the project context.

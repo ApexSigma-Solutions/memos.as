@@ -71,7 +71,6 @@ services:
       - INGEST_API_URL=http://ingest-llm-api:8000
     volumes:
       - ./app:/app/app
-      - ./context_portal:/app/context_portal
     depends_on:
       - postgres
       - redis

@@ -4,9 +4,32 @@ import hashlib
 import time
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+from app.config import get_config
 
 import redis
 
+
+from app.services.redis_utils import scan_iter
+
+from prometheus_client import Counter
+
+# Prometheus Metrics
+try:
+    APEX_MEMORY_EXPIRATION_RUNS_TOTAL = Counter(
+        "apex_memory_expiration_runs_total", "Total number of memory expiration job runs"
+    )
+    APEX_MEMORIES_DELETED_TOTAL = Counter(
+        "apex_memories_deleted_total", "Total number of expired memories deleted"
+    )
+    APEX_MEMORY_EXPIRATION_ERRORS_TOTAL = Counter(
+        "apex_memory_expiration_errors_total", "Total number of errors during memory expiration"
+    )
+except ValueError:
+    # Metrics already registered (e.g., in tests)
+    from prometheus_client import REGISTRY
+    APEX_MEMORY_EXPIRATION_RUNS_TOTAL = REGISTRY._names_to_collectors["apex_memory_expiration_runs_total"]
+    APEX_MEMORIES_DELETED_TOTAL = REGISTRY._names_to_collectors["apex_memories_deleted_total"]
+    APEX_MEMORY_EXPIRATION_ERRORS_TOTAL = REGISTRY._names_to_collectors["apex_memory_expiration_errors_total"]
 
 class RedisClient:
     """
@@ -21,6 +44,7 @@ class RedisClient:
     """
 
     def __init__(self):
+        self.logger = get_config().get_logger(__name__)
         self.host = os.environ.get("REDIS_HOST", "localhost")
         self.port = int(os.environ.get("REDIS_PORT", 6379))
         self.password = os.environ.get("REDIS_PASSWORD", None)
@@ -39,22 +63,28 @@ class RedisClient:
             )
             # Test connection
             self.client.ping()
-            print(f"✅ Connected to Redis at {self.host}:{self.port}")
+            self.logger.info(f"Connected to Redis at {self.host}:{self.port}")
         except Exception as e:
-            print(f"❌ Failed to connect to Redis: {e}")
+            self.logger.error(f"Failed to connect to Redis: {e}")
             self.client = None
 
-    # Cache TTL Constants (in seconds)
-    MEMORY_QUERY_TTL = 1800  # 30 minutes for query results
-    EMBEDDING_TTL = 3600  # 1 hour for embeddings
-    WORKING_MEMORY_TTL = 300  # 5 minutes for working memory
-    TOOL_CACHE_TTL = 7200  # 2 hours for tool registry
-    HEALTH_CHECK_TTL = 60  # 1 minute for health checks
+    # Cache TTLs are now driven from centralized config
+    cfg = get_config()
+    MEMORY_QUERY_TTL = cfg.get_ttl("MEMORY_QUERY_TTL")
+    EMBEDDING_TTL = cfg.get_ttl("EMBEDDING_TTL")
+    WORKING_MEMORY_TTL = cfg.get_ttl("WORKING_MEMORY_TTL")
+    TOOL_CACHE_TTL = cfg.get_ttl("TOOL_CACHE_TTL")
+    HEALTH_CHECK_TTL = cfg.get_ttl("HEALTH_CHECK_TTL")
+    LLM_RESPONSE_TTL = cfg.get_ttl("LLM_RESPONSE_TTL")
+
+    def _get_namespaced_key(self, key: str) -> str:
+        """Prepend the APEX_NAMESPACE to the key."""
+        return f"{self.cfg.get('APEX_NAMESPACE')}:{key}"
 
     def _generate_cache_key(self, prefix: str, *args) -> str:
         """Generate a consistent cache key from arguments."""
         key_data = f"{prefix}:" + ":".join(str(arg) for arg in args)
-        return hashlib.md5(key_data.encode()).hexdigest()
+        return self._get_namespaced_key(hashlib.md5(key_data.encode()).hexdigest())
 
     def is_connected(self) -> bool:
         """Check if Redis connection is available."""
@@ -91,7 +121,7 @@ class RedisClient:
             self.client.incr("cache:queries:stored")
             return True
         except Exception as e:
-            print(f"Error caching query result: {e}")
+            self.logger.error(f"Error caching query result: {e}")
             return False
 
     def get_cached_query_result(
@@ -113,7 +143,7 @@ class RedisClient:
                 self.client.incr("cache:queries:misses")
                 return None
         except Exception as e:
-            print(f"Error retrieving cached query: {e}")
+            self.logger.error(f"Error retrieving cached query: {e}")
             return None
 
     # === Embedding Vector Caching ===
@@ -125,7 +155,7 @@ class RedisClient:
 
         try:
             content_hash = hashlib.sha256(content.encode()).hexdigest()
-            cache_key = f"embedding:{content_hash}"
+            cache_key = self._get_namespaced_key(f"embedding:{content_hash}")
 
             embedding_data = {
                 "embedding": embedding,
@@ -139,7 +169,7 @@ class RedisClient:
             self.client.incr("cache:embeddings:stored")
             return True
         except Exception as e:
-            print(f"Error caching embedding: {e}")
+            self.logger.error(f"Error caching embedding: {e}")
             return False
 
     def get_cached_embedding(self, content: str) -> Optional[List[float]]:
@@ -149,7 +179,7 @@ class RedisClient:
 
         try:
             content_hash = hashlib.sha256(content.encode()).hexdigest()
-            cache_key = f"embedding:{content_hash}"
+            cache_key = self._get_namespaced_key(f"embedding:{content_hash}")
 
             cached_data = self.client.get(cache_key)
             if cached_data:
@@ -160,34 +190,30 @@ class RedisClient:
                 self.client.incr("cache:embeddings:misses")
                 return None
         except Exception as e:
-            print(f"Error retrieving cached embedding: {e}")
+            self.logger.error(f"Error retrieving cached embedding: {e}")
             return None
 
     # === Working Memory Caching (Tier 1) ===
 
-    def store_working_memory(self, key: str, memory_data: Dict[str, Any]) -> bool:
+    def store_working_memory(self, key: str, memory_data: Dict[str, Any], expire_seconds: Optional[int] = None) -> bool:
         """Store working memory with shorter TTL."""
         if not self.is_connected():
             return False
-
         try:
-            cache_key = f"working_memory:{key}"
+            cache_key = self._get_namespaced_key(f"working_memory:{key}")
             memory_with_meta = {
                 "data": memory_data,
                 "stored_at": datetime.utcnow().isoformat(),
                 "tier": "working",
             }
 
-            self.client.setex(
-                cache_key,
-                self.WORKING_MEMORY_TTL,
-                json.dumps(memory_with_meta),
-            )
+            ttl = expire_seconds if expire_seconds is not None else self.WORKING_MEMORY_TTL
 
+            self.client.setex(cache_key, ttl, json.dumps(memory_with_meta))
             self.client.incr("cache:working_memory:stored")
             return True
         except Exception as e:
-            print(f"Error storing working memory: {e}")
+            self.logger.error(f"Error storing working memory: {e}")
             return False
 
     def get_working_memory(self, key: str) -> Optional[Dict[str, Any]]:
@@ -196,7 +222,7 @@ class RedisClient:
             return None
 
         try:
-            cache_key = f"working_memory:{key}"
+            cache_key = self._get_namespaced_key(f"working_memory:{key}")
             cached_data = self.client.get(cache_key)
 
             if cached_data:
@@ -207,7 +233,7 @@ class RedisClient:
                 self.client.incr("cache:working_memory:misses")
                 return None
         except Exception as e:
-            print(f"Error retrieving working memory: {e}")
+            self.logger.error(f"Error retrieving working memory: {e}")
             return None
 
     # === Tool Registry Caching ===
@@ -225,7 +251,7 @@ class RedisClient:
             }
 
             self.client.setex(
-                "tool_registry:all",
+                self._get_namespaced_key("tool_registry:all"),
                 self.TOOL_CACHE_TTL,
                 json.dumps(cache_data),
             )
@@ -233,7 +259,7 @@ class RedisClient:
             self.client.incr("cache:tools:stored")
             return True
         except Exception as e:
-            print(f"Error caching tool registry: {e}")
+            self.logger.error(f"Error caching tool registry: {e}")
             return False
 
     def get_cached_tool_registry(self) -> Optional[List[Dict[str, Any]]]:
@@ -242,7 +268,7 @@ class RedisClient:
             return None
 
         try:
-            cached_data = self.client.get("tool_registry:all")
+            cached_data = self.client.get(self._get_namespaced_key("tool_registry:all"))
 
             if cached_data:
                 tool_obj = json.loads(cached_data)
@@ -252,7 +278,7 @@ class RedisClient:
                 self.client.incr("cache:tools:misses")
                 return None
         except Exception as e:
-            print(f"Error retrieving cached tools: {e}")
+            self.logger.error(f"Error retrieving cached tools: {e}")
             return None
 
     # === Cache Invalidation Strategies ===
@@ -264,17 +290,29 @@ class RedisClient:
 
         try:
             # Invalidate query result caches (they may now be stale)
-            query_keys = self.client.keys("cache_key:query:*")
+            query_keys = list(scan_iter(self.client, self._get_namespaced_key("query:*")))
             if query_keys:
                 self.client.delete(*query_keys)
-                print(f"Invalidated {len(query_keys)} query cache entries")
+                self.logger.info(f"Invalidated {len(query_keys)} query cache entries")
+
+            # Invalidate embedding caches
+            embedding_keys = list(scan_iter(self.client, self._get_namespaced_key("embedding:*")))
+            if embedding_keys:
+                self.client.delete(*embedding_keys)
+                self.logger.info(f"Invalidated {len(embedding_keys)} embedding cache entries")
+
+            # Invalidate working memory caches
+            working_memory_keys = list(scan_iter(self.client, self._get_namespaced_key("working_memory:*")))
+            if working_memory_keys:
+                self.client.delete(*working_memory_keys)
+                self.logger.info(f"Invalidated {len(working_memory_keys)} working memory cache entries")
 
             # If specific memory_id provided, invalidate related caches
             if memory_id:
-                specific_keys = self.client.keys(f"*memory:{memory_id}*")
+                specific_keys = list(scan_iter(self.client, self._get_namespaced_key(f"*memory:{memory_id}*")))
                 if specific_keys:
                     self.client.delete(*specific_keys)
-                    print(
+                    self.logger.info(
                         f"Invalidated {len(specific_keys)} "
                         "memory-specific cache entries"
                     )
@@ -282,7 +320,7 @@ class RedisClient:
             self.client.incr("cache:invalidations:memory")
             return True
         except Exception as e:
-            print(f"Error invalidating memory caches: {e}")
+            self.logger.error(f"Error invalidating memory caches: {e}")
             return False
 
     def invalidate_tool_caches(self) -> bool:
@@ -291,15 +329,15 @@ class RedisClient:
             return False
 
         try:
-            tool_keys = self.client.keys("tool_registry:*")
+            tool_keys = list(scan_iter(self.client, self._get_namespaced_key("tool_registry:*")))
             if tool_keys:
                 self.client.delete(*tool_keys)
-                print(f"Invalidated {len(tool_keys)} tool cache entries")
+                self.logger.info(f"Invalidated {len(tool_keys)} tool cache entries")
 
             self.client.incr("cache:invalidations:tools")
             return True
         except Exception as e:
-            print(f"Error invalidating tool caches: {e}")
+            self.logger.error(f"Error invalidating tool caches: {e}")
             return False
 
     def clear_expired_caches(self) -> Dict[str, int]:
@@ -309,36 +347,45 @@ class RedisClient:
 
         try:
             stats = {
-                "queries_cleared": 0,
-                "embeddings_cleared": 0,
-                "working_memory_cleared": 0,
-                "tools_cleared": 0,
+                "no_ttl_keys": 0,
+                "processed_patterns": 0,
             }
 
-            # Check and clear expired entries by pattern
+            # This utility scans for keys that DO NOT have an expiry (ttl == -1)
+            # and returns counts. Redis auto-expires keys with TTLs; manual deletion
+            # of expired keys is unnecessary. Use this to detect keys missing TTLs.
             patterns = [
-                ("query:*", "queries_cleared"),
-                ("embedding:*", "embeddings_cleared"),
-                ("working_memory:*", "working_memory_cleared"),
-                ("tool_registry:*", "tools_cleared"),
+                self._get_namespaced_key("query:*"),
+                self._get_namespaced_key("embedding:*"),
+                self._get_namespaced_key("working_memory:*"),
+                self._get_namespaced_key("tool_registry:*"),
+                self._get_namespaced_key("llm:*"),
             ]
 
-            for pattern, stat_key in patterns:
-                keys = self.client.keys(pattern)
-                expired_keys = []
+            total_no_ttl = 0
+            processed = 0
 
-                for key in keys:
-                    ttl = self.client.ttl(key)
-                    if ttl == -2:  # Key doesn't exist
-                        expired_keys.append(key)
+            for pattern in patterns:
+                # Use scan to avoid blocking Redis in large datasets
+                try:
+                    for key in self.client.scan_iter(match=pattern):
+                        processed += 1
+                        try:
+                            ttl = self.client.ttl(key)
+                        except Exception:
+                            ttl = None
+                        if ttl == -1:
+                            total_no_ttl += 1
+                except Exception:
+                    # If scan_iter fails for any reason, log and continue; do not use KEYS()
+                    self.logger.warning("Failed to scan pattern %s; skipping", pattern)
 
-                if expired_keys:
-                    self.client.delete(*expired_keys)
-                    stats[stat_key] = len(expired_keys)
+            stats["no_ttl_keys"] = total_no_ttl
+            stats["processed_patterns"] = processed
 
             return stats
         except Exception as e:
-            print(f"Error clearing expired caches: {e}")
+            self.logger.error(f"Error clearing expired caches: {e}")
             return {"error": str(e)}
 
     # === LLM Response Caching ===
@@ -359,7 +406,7 @@ class RedisClient:
         try:
             # Create cache key from prompt and parameters
             prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
-            cache_key = f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}"
+            cache_key = self._get_namespaced_key(f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}")
 
             cache_data = {
                 "model": model,
@@ -373,13 +420,13 @@ class RedisClient:
                 "prompt_length": len(prompt),
             }
 
-            # Use longer TTL for LLM responses (4 hours)
-            self.client.setex(cache_key, 14400, json.dumps(cache_data))
+            # Use config-driven TTL for LLM responses
+            self.client.setex(cache_key, self.LLM_RESPONSE_TTL, json.dumps(cache_data))
 
             self.client.incr("cache:llm:stored")
             return True
         except Exception as e:
-            print(f"Error caching LLM response: {e}")
+            self.logger.error(f"Error caching LLM response: {e}")
             return False
 
     def get_cached_llm_response(
@@ -391,7 +438,7 @@ class RedisClient:
 
         try:
             prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
-            cache_key = f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}"
+            cache_key = self._get_namespaced_key(f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}")
 
             cached_data = self.client.get(cache_key)
             if cached_data:
@@ -402,7 +449,7 @@ class RedisClient:
                 self.client.incr("cache:llm:misses")
                 return None
         except Exception as e:
-            print(f"Error retrieving cached LLM response: {e}")
+            self.logger.error(f"Error retrieving cached LLM response: {e}")
             return None
 
     # === LLM Token Usage Tracking ===
@@ -430,18 +477,26 @@ class RedisClient:
             }
 
             # Store individual usage record
-            usage_key = f"llm_usage:{model}:{int(time.time())}"
+            usage_key = self._get_namespaced_key(f"llm_usage:{model}:{int(time.time())}")
             self.client.setex(usage_key, 2592000, json.dumps(usage_data))  # 30 days
 
             # Update aggregate counters
-            self.client.incrby(f"llm:total_tokens:{model}", total_tokens)
-            self.client.incrby(f"llm:prompt_tokens:{model}", prompt_tokens)
-            self.client.incrby(f"llm:completion_tokens:{model}", completion_tokens)
-            self.client.incr(f"llm:requests:{model}")
+            self.client.incrby(self._get_namespaced_key(f"llm:total_tokens:{model}"), total_tokens)
+            self.client.incrby(self._get_namespaced_key(f"llm:prompt_tokens:{model}"), prompt_tokens)
+            self.client.incrby(self._get_namespaced_key(f"llm:completion_tokens:{model}"), completion_tokens)
+            self.client.incr(self._get_namespaced_key(f"llm:requests:{model}"))
+
+            # Maintain a set of known models to avoid scanning keyspace for model names
+            models_set = self._get_namespaced_key("llm:models")
+            try:
+                self.client.sadd(models_set, model)
+            except Exception:
+                # Non-fatal: continue even if set add fails
+                self.logger.debug("Failed to add model to llm:models set: %s", model)
 
             return True
         except Exception as e:
-            print(f"Error tracking LLM usage: {e}")
+            self.logger.error(f"Error tracking LLM usage: {e}")
             return False
 
     def get_llm_usage_stats(self, model: Optional[str] = None) -> Dict[str, Any]:
@@ -455,29 +510,40 @@ class RedisClient:
             if model:
                 models = [model]
             else:
-                # Get all models that have usage data
-                usage_keys = self.client.keys("llm:requests:*")
-                models = [key.split(":")[-1] for key in usage_keys]
+                # Prefer explicit set of models to avoid scanning the keyspace
+                models_set = self._get_namespaced_key("llm:models")
+                try:
+                    models = list(self.client.smembers(models_set) or [])
+                except Exception:
+                    models = []
+
+                # Fallback to scan if no models were registered
+                if not models:
+                    usage_keys = list(scan_iter(self.client, self._get_namespaced_key("llm:requests:*")))
+                    models = [k.rsplit(":", 1)[-1] for k in usage_keys]
 
             for model_name in models:
+                # Handle bytes from Redis
+                if isinstance(model_name, bytes):
+                    model_name = model_name.decode()
                 stats[model_name] = {
                     "total_requests": int(
-                        self.client.get(f"llm:requests:{model_name}") or 0
+                        self.client.get(self._get_namespaced_key(f"llm:requests:{model_name}")) or 0
                     ),
                     "total_tokens": int(
-                        self.client.get(f"llm:total_tokens:{model_name}") or 0
+                        self.client.get(self._get_namespaced_key(f"llm:total_tokens:{model_name}")) or 0
                     ),
                     "prompt_tokens": int(
-                        self.client.get(f"llm:prompt_tokens:{model_name}") or 0
+                        self.client.get(self._get_namespaced_key(f"llm:prompt_tokens:{model_name}")) or 0
                     ),
                     "completion_tokens": int(
-                        self.client.get(f"llm:completion_tokens:{model_name}") or 0
+                        self.client.get(self._get_namespaced_key(f"llm:completion_tokens:{model_name}")) or 0
                     ),
                 }
 
             return stats
         except Exception as e:
-            print(f"Error getting LLM usage stats: {e}")
+            self.logger.error(f"Error getting LLM usage stats: {e}")
             return {"error": str(e)}
 
     # === LLM Model Performance Caching ===
@@ -505,12 +571,12 @@ class RedisClient:
             }
 
             # Store individual performance record
-            perf_key = f"llm_perf:{model}:{operation}:{int(time.time())}"
+            perf_key = self._get_namespaced_key(f"llm_perf:{model}:{operation}:{int(time.time())}")
             self.client.setex(perf_key, 604800, json.dumps(perf_data))  # 7 days
 
             # Update rolling averages (last 100 requests)
-            success_key = f"llm_perf_success:{model}:{operation}"
-            time_key = f"llm_perf_time:{model}:{operation}"
+            success_key = self._get_namespaced_key(f"llm_perf_success:{model}:{operation}")
+            time_key = self._get_namespaced_key(f"llm_perf_time:{model}:{operation}")
 
             # Use Redis lists to maintain rolling windows
             self.client.lpush(success_key, 1 if success else 0)
@@ -522,7 +588,7 @@ class RedisClient:
 
             return True
         except Exception as e:
-            print(f"Error caching model performance: {e}")
+            self.logger.error(f"Error caching model performance: {e}")
             return False
 
     def get_model_performance(self, model: str, operation: str) -> Dict[str, Any]:
@@ -531,8 +597,8 @@ class RedisClient:
             return {"error": "Redis not connected"}
 
         try:
-            success_key = f"llm_perf_success:{model}:{operation}"
-            time_key = f"llm_perf_time:{model}:{operation}"
+            success_key = self._get_namespaced_key(f"llm_perf_success:{model}:{operation}")
+            time_key = self._get_namespaced_key(f"llm_perf_time:{model}:{operation}")
 
             success_scores = self.client.lrange(success_key, 0, -1)
             response_times = self.client.lrange(time_key, 0, -1)
@@ -558,8 +624,10 @@ class RedisClient:
                 "sample_size": len(success_scores),
             }
         except Exception as e:
-            print(f"Error getting model performance: {e}")
+            self.logger.error(f"Error getting model performance: {e}")
             return {"error": str(e)}
+
+    def get_cache_performance_stats(self) -> Dict[str, Any]:
         """Get comprehensive cache performance statistics."""
         if not self.is_connected():
             return {"error": "Redis not connected"}
@@ -567,7 +635,7 @@ class RedisClient:
         try:
             stats = {}
 
-            # Cache hit/miss ratios
+            # Cache hit/miss ratios - use namespaced keys
             metrics = [
                 "cache:queries:hits",
                 "cache:queries:misses",
@@ -586,7 +654,8 @@ class RedisClient:
             ]
 
             for metric in metrics:
-                value = self.client.get(metric)
+                namespaced_metric = self._get_namespaced_key(metric)
+                value = self.client.get(namespaced_metric)
                 stats[metric] = int(value) if value else 0
 
             # Calculate hit ratios
@@ -613,17 +682,26 @@ class RedisClient:
                 ),
             }
 
-            # Redis memory usage
-            info = self.client.info("memory")
-            stats["redis_memory"] = {
-                "used_memory": info.get("used_memory", 0),
-                "used_memory_human": info.get("used_memory_human", "0B"),
-                "max_memory": info.get("maxmemory", 0),
-            }
+            # Redis memory usage - handle fakeredis compatibility
+            try:
+                info = self.client.info("memory")
+                stats["redis_memory"] = {
+                    "used_memory": info.get("used_memory", 0),
+                    "used_memory_human": info.get("used_memory_human", "0B"),
+                    "max_memory": info.get("maxmemory", 0),
+                }
+            except Exception:
+                # fakeredis doesn't support INFO command
+                stats["redis_memory"] = {
+                    "used_memory": 0,
+                    "used_memory_human": "0B",
+                    "max_memory": 0,
+                    "note": "Memory info not available in test environment"
+                }
 
             return stats
         except Exception as e:
-            print(f"Error getting cache stats: {e}")
+            self.logger.error(f"Error getting cache stats: {e}")
             return {"error": str(e)}
 
     # === Legacy compatibility methods ===
@@ -654,13 +732,13 @@ class RedisClient:
             return 0
 
         try:
-            keys = self.client.keys(pattern)
+            keys = list(scan_iter(self.client, pattern))
             if keys:
                 self.client.delete(*keys)
                 return len(keys)
             return 0
         except Exception as e:
-            print(f"Error clearing cache pattern {pattern}: {e}")
+            self.logger.error(f"Error clearing cache pattern {pattern}: {e}")
             return 0
 
 

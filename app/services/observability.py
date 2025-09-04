@@ -135,10 +135,61 @@ class ObservabilityService:
             registry=self.registry,
         )
 
-        self.cache_hits = Counter(
-            "memos_cache_hits_total",
-            "Cache hit/miss statistics",
-            ["cache_type", "status"],
+        # MCP-specific metrics
+        self.mcp_auth_attempts = Counter(
+            "memos_mcp_auth_attempts_total",
+            "MCP authentication attempts",
+            ["service_account", "result"],
+            registry=self.registry,
+        )
+
+        self.mcp_requests_total = Counter(
+            "memos_mcp_requests_total",
+            "Total MCP requests",
+            ["method", "endpoint", "service_account", "status"],
+            registry=self.registry,
+        )
+
+        self.mcp_request_duration = Histogram(
+            "memos_mcp_request_duration_seconds",
+            "MCP request duration in seconds",
+            ["method", "endpoint", "service_account"],
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
+            registry=self.registry,
+        )
+
+        self.mcp_rate_limit_hits = Counter(
+            "memos_mcp_rate_limit_hits_total",
+            "MCP rate limit hits",
+            ["service_account"],
+            registry=self.registry,
+        )
+
+        self.mcp_tool_usage = Counter(
+            "memos_mcp_tool_usage_total",
+            "MCP tool usage",
+            ["tool_name", "service_account", "result"],
+            registry=self.registry,
+        )
+
+        self.mcp_active_connections = Gauge(
+            "memos_mcp_active_connections",
+            "Active MCP connections",
+            ["service_account"],
+            registry=self.registry,
+        )
+
+        self.mcp_memory_operations = Counter(
+            "memos_mcp_memory_operations_total",
+            "MCP memory operations",
+            ["operation", "tier", "service_account", "result"],
+            registry=self.registry,
+        )
+
+        self.mcp_audit_events = Counter(
+            "memos_mcp_audit_events_total",
+            "MCP audit events",
+            ["event_type", "service_account", "severity"],
             registry=self.registry,
         )
 
@@ -299,6 +350,74 @@ class ObservabilityService:
         """Record cache hit/miss."""
         status = "hit" if hit else "miss"
         self.cache_hits.labels(cache_type=cache_type, status=status).inc()
+
+    def record_mcp_auth_attempt(self, service_account: str, success: bool):
+        """Record MCP authentication attempt."""
+        result = "success" if success else "failure"
+        self.mcp_auth_attempts.labels(
+            service_account=service_account, result=result
+        ).inc()
+
+    def record_mcp_request(
+        self,
+        method: str,
+        endpoint: str,
+        service_account: str,
+        status_code: int,
+        duration: float = None,
+    ):
+        """Record MCP request metrics."""
+        status = str(status_code)
+        self.mcp_requests_total.labels(
+            method=method,
+            endpoint=endpoint,
+            service_account=service_account,
+            status=status,
+        ).inc()
+
+        if duration is not None:
+            self.mcp_request_duration.labels(
+                method=method,
+                endpoint=endpoint,
+                service_account=service_account,
+            ).observe(duration)
+
+    def record_mcp_rate_limit_hit(self, service_account: str):
+        """Record MCP rate limit hit."""
+        self.mcp_rate_limit_hits.labels(service_account=service_account).inc()
+
+    def record_mcp_tool_usage(
+        self, tool_name: str, service_account: str, success: bool
+    ):
+        """Record MCP tool usage."""
+        result = "success" if success else "failure"
+        self.mcp_tool_usage.labels(
+            tool_name=tool_name, service_account=service_account, result=result
+        ).inc()
+
+    def update_mcp_active_connections(self, service_account: str, count: int):
+        """Update active MCP connections gauge."""
+        self.mcp_active_connections.labels(service_account=service_account).set(count)
+
+    def record_mcp_memory_operation(
+        self, operation: str, tier: str, service_account: str, success: bool
+    ):
+        """Record MCP memory operation."""
+        result = "success" if success else "failure"
+        self.mcp_memory_operations.labels(
+            operation=operation,
+            tier=tier,
+            service_account=service_account,
+            result=result,
+        ).inc()
+
+    def record_mcp_audit_event(
+        self, event_type: str, service_account: str, severity: str = "info"
+    ):
+        """Record MCP audit event."""
+        self.mcp_audit_events.labels(
+            event_type=event_type, service_account=service_account, severity=severity
+        ).inc()
 
     def log_structured(self, level: str, message: str, **kwargs):
         """Log structured message for Loki."""

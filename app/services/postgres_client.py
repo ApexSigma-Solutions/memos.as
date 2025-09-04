@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, create_engine
+from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, create_engine, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -20,12 +20,39 @@ class Memory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(Text, nullable=False)
+    tier = Column(String(255), nullable=False, default="default")
     memory_metadata = Column(
         JSON, nullable=True
     )  # Renamed from 'metadata' to avoid SQLAlchemy conflict
     embedding_id = Column(String(255), nullable=True)  # Reference to Qdrant vector ID
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+
+
+class KnowledgeShareRequestDB(Base):
+    __tablename__ = "knowledge_share_requests"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    requester_agent_id = Column(String(255), nullable=False)
+    target_agent_id = Column(String(255), nullable=False)
+    query = Column(Text, nullable=False)
+    confidence_threshold = Column(Float, nullable=False)
+    sharing_policy = Column(String(255), nullable=False)
+    status = Column(String(255), nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KnowledgeShareOfferDB(Base):
+    __tablename__ = "knowledge_share_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    request_id = Column(Integer, nullable=False)
+    offering_agent_id = Column(String(255), nullable=False)
+    memory_id = Column(Integer, nullable=False)
+    confidence_score = Column(Float, nullable=False)
+    status = Column(String(255), nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class RegisteredTool(Base):
@@ -99,14 +126,17 @@ class PostgresClient:
     def store_memory(
         self,
         content: str,
+        agent_id: str = "default_agent",
         metadata: Optional[Dict[str, Any]] = None,
         embedding_id: Optional[str] = None,
+        expires_at: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Store a new memory entry.
 
         Args:
             content: The memory content to store
+            agent_id: The agent ID to associate with the memory (stored in 'tier' column)
             metadata: Optional metadata dictionary
             embedding_id: Optional reference to Qdrant vector ID
 
@@ -115,8 +145,9 @@ class PostgresClient:
         """
         try:
             with self.get_session() as session:
+                # Using the existing 'tier' column to store agent_id to avoid schema migration.
                 memory = Memory(
-                    content=content, memory_metadata=metadata, embedding_id=embedding_id
+                    content=content, tier=agent_id, memory_metadata=metadata, embedding_id=embedding_id, expires_at=expires_at
                 )
                 session.add(memory)
                 session.flush()  # Flush to get the ID but don't commit yet
@@ -126,7 +157,7 @@ class PostgresClient:
                     print("⚠️  Memory ID is None after flush - database issue")
                     return None
 
-                print(f"✅ Successfully stored memory with ID: {memory_id}")
+                print(f"✅ Successfully stored memory with ID: {memory_id} for agent {agent_id}")
                 return memory_id
         except Exception as e:
             print(f"❌ Error storing memory in PostgreSQL: {e}")
@@ -144,6 +175,7 @@ class PostgresClient:
                     return {
                         "id": memory.id,
                         "content": memory.content,
+                        "agent_id": memory.tier, # Using tier column as agent_id
                         "metadata": memory.memory_metadata,
                         "embedding_id": memory.embedding_id,
                         "created_at": memory.created_at,
@@ -163,6 +195,7 @@ class PostgresClient:
                     {
                         "id": memory.id,
                         "content": memory.content,
+                        "agent_id": memory.tier, # Using tier column as agent_id
                         "metadata": memory.memory_metadata,
                         "embedding_id": memory.embedding_id,
                         "created_at": memory.created_at,
@@ -296,6 +329,87 @@ class PostgresClient:
         except Exception as e:
             print(f"Error retrieving all tools: {e}")
             return []
+
+    def create_knowledge_share_request(self, requester_agent_id: str, target_agent_id: str, query: str, confidence_threshold: float, sharing_policy: str) -> Optional[int]:
+        """Create a new knowledge share request."""
+        try:
+            with self.get_session() as session:
+                request = KnowledgeShareRequestDB(
+                    requester_agent_id=requester_agent_id,
+                    target_agent_id=target_agent_id,
+                    query=query,
+                    confidence_threshold=confidence_threshold,
+                    sharing_policy=sharing_policy,
+                )
+                session.add(request)
+                session.flush()
+                return request.id
+        except Exception as e:
+            print(f"Error creating knowledge share request: {e}")
+            return None
+
+    def create_knowledge_share_offer(self, request_id: int, offering_agent_id: str, memory_id: int, confidence_score: float) -> Optional[int]:
+        """Create a new knowledge share offer."""
+        try:
+            with self.get_session() as session:
+                offer = KnowledgeShareOfferDB(
+                    request_id=request_id,
+                    offering_agent_id=offering_agent_id,
+                    memory_id=memory_id,
+                    confidence_score=confidence_score,
+                )
+                session.add(offer)
+                session.flush()
+                return offer.id
+        except Exception as e:
+            print(f"Error creating knowledge share offer: {e}")
+            return None
+
+    def get_pending_knowledge_share_requests(self, agent_id: str) -> List[Dict[str, Any]]:
+        """Get pending knowledge share requests for a given agent."""
+        try:
+            with self.get_session() as session:
+                requests = session.query(KnowledgeShareRequestDB).filter(
+                    KnowledgeShareRequestDB.target_agent_id == agent_id,
+                    KnowledgeShareRequestDB.status == "pending"
+                ).all()
+                return [
+                    {
+                        "id": request.id,
+                        "requester_agent_id": request.requester_agent_id,
+                        "target_agent_id": request.target_agent_id,
+                        "query": request.query,
+                        "confidence_threshold": request.confidence_threshold,
+                        "sharing_policy": request.sharing_policy,
+                        "status": request.status,
+                        "created_at": request.created_at,
+                    }
+                    for request in requests
+                ]
+        except Exception as e:
+            print(f"Error getting pending knowledge share requests: {e}")
+            return []
+
+    def get_knowledge_share_request_by_id(self, request_id: int) -> Optional[Dict[str, Any]]:
+        """Get a knowledge share request by its ID."""
+        try:
+            with self.get_session() as session:
+                request = session.query(KnowledgeShareRequestDB).filter(KnowledgeShareRequestDB.id == request_id).first()
+                if request:
+                    return {
+                        "id": request.id,
+                        "requester_agent_id": request.requester_agent_id,
+                        "target_agent_id": request.target_agent_id,
+                        "query": request.query,
+                        "confidence_threshold": request.confidence_threshold,
+                        "sharing_policy": request.sharing_policy,
+                        "status": request.status,
+                        "created_at": request.created_at,
+                    }
+                return None
+        except Exception as e:
+            print(f"Error getting knowledge share request by id: {e}")
+            return None
 
 
 # Global PostgreSQL client instance

@@ -182,12 +182,6 @@ DevEnviro migrations are in `app/migrations/`:
 - `004_add_token_to_agent.sql`: Authentication
 - `005_add_capabilities_to_agents.sql`: Agent capabilities
 
-### Context Portal System
-Each project has `context_portal/` containing:
-- **Alembic migrations**: Database schema evolution
-- **Vector data**: ChromaDB/Qdrant collections
-- **Context databases**: SQLite context storage
-
 ### Modern Python Toolchain
 All projects use:
 - **Ruff**: Linting and formatting
