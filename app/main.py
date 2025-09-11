@@ -1,29 +1,34 @@
-import os
 import logging
+import os
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models import (
+    GraphQueryRequest,
+    LLMCacheRequest,
+    LLMPerformanceRequest,
+    LLMUsageRequest,
     QueryRequest,
     StoreRequest,
     ToolRegistrationRequest,
-    GraphQueryRequest,
-    LLMCacheRequest,
-    LLMUsageRequest,
-    LLMPerformanceRequest,
 )
-from app.schemas import MCPTier, MCP_TIER_MAPPING
-from app.services.postgres_client import PostgresClient, get_postgres_client
-from app.services.qdrant_client import QdrantMemoryClient, get_qdrant_client
-from app.services.redis_client import RedisClient, get_redis_client
+from app.schemas import (
+    MCP_TIER_MAPPING,
+    KnowledgeShareOffer,
+    KnowledgeShareRequest,
+    MCPTier,
+)
 from app.services.neo4j_client import Neo4jClient, get_neo4j_client
 from app.services.observability import (
     ObservabilityService,
     get_observability,
     trace_async,
 )
+from app.services.postgres_client import PostgresClient, get_postgres_client
+from app.services.qdrant_client import QdrantMemoryClient, get_qdrant_client
+from app.services.redis_client import RedisClient, get_redis_client
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -322,6 +327,7 @@ async def store_mcp_memory(
         observability=observability,
     )
 
+
 @app.post("/memory/store")
 @trace_async("memory.store")
 async def store_memory(
@@ -376,7 +382,9 @@ async def store_memory(
         # Step 2: Store the full content/metadata in PostgreSQL to get a unique ID
         postgres_start = time.time()
         memory_id = postgres_client.store_memory(
-            content=store_request.content, agent_id=store_request.agent_id, metadata=store_request.metadata
+            content=store_request.content,
+            agent_id=store_request.agent_id,
+            metadata=store_request.metadata,
         )
         postgres_duration = time.time() - postgres_start
 
@@ -737,7 +745,7 @@ async def query_memory(
             query_embedding=query_embedding,
             top_k=query_request.top_k,
             score_threshold=0.1,  # Configurable threshold
-            agent_id=agent_to_query
+            agent_id=agent_to_query,
         )
 
         # Extract memory IDs from search results
@@ -792,8 +800,6 @@ async def query_memory(
         raise HTTPException(status_code=500, detail=f"Error querying memory: {str(e)}")
 
 
-from app.schemas import MCPTier, MCP_TIER_MAPPING, KnowledgeShareRequest, KnowledgeShareOffer
-
 # Knowledge Sharing Endpoints
 @app.post("/memory/share/request")
 async def request_knowledge(
@@ -802,15 +808,17 @@ async def request_knowledge(
     observability: ObservabilityService = Depends(get_observability),
 ):
     request_id = postgres_client.create_knowledge_share_request(
-        requester_agent_id=share_request.agent_id, # This needs to be passed in the request
+        requester_agent_id=share_request.agent_id,  # This needs to be passed in the request
         target_agent_id=share_request.target_agent,
         query=share_request.query,
         confidence_threshold=share_request.confidence_threshold,
         sharing_policy=share_request.sharing_policy,
     )
     if request_id is None:
-        raise HTTPException(status_code=500, detail="Failed to create knowledge share request")
-    
+        raise HTTPException(
+            status_code=500, detail="Failed to create knowledge share request"
+        )
+
     observability.log_structured(
         "info",
         "Knowledge share request created",
@@ -820,7 +828,11 @@ async def request_knowledge(
         query=share_request.query,
     )
 
-    return {"message": "Knowledge share request created successfully", "request_id": request_id}
+    return {
+        "message": "Knowledge share request created successfully",
+        "request_id": request_id,
+    }
+
 
 @app.post("/memory/share/offer")
 async def offer_knowledge(
@@ -828,13 +840,18 @@ async def offer_knowledge(
     postgres_client: PostgresClient = Depends(get_postgres_client),
     observability: ObservabilityService = Depends(get_observability),
 ):
-    request = postgres_client.get_knowledge_share_request_by_id(offer_request.request_id)
+    request = postgres_client.get_knowledge_share_request_by_id(
+        offer_request.request_id
+    )
     if not request:
         raise HTTPException(status_code=404, detail="Knowledge share request not found")
 
     if request["sharing_policy"] == "high_confidence_only":
         if offer_request.confidence_score < request["confidence_threshold"]:
-            raise HTTPException(status_code=400, detail=f"Confidence score {offer_request.confidence_score} is below the threshold {request['confidence_threshold']}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Confidence score {offer_request.confidence_score} is below the threshold {request['confidence_threshold']}",
+            )
 
     offer_id = postgres_client.create_knowledge_share_offer(
         request_id=offer_request.request_id,
@@ -843,7 +860,9 @@ async def offer_knowledge(
         confidence_score=offer_request.confidence_score,
     )
     if offer_id is None:
-        raise HTTPException(status_code=500, detail="Failed to create knowledge share offer")
+        raise HTTPException(
+            status_code=500, detail="Failed to create knowledge share offer"
+        )
 
     observability.log_structured(
         "info",
@@ -855,7 +874,11 @@ async def offer_knowledge(
         confidence_score=offer_request.confidence_score,
     )
 
-    return {"message": "Knowledge share offer created successfully", "offer_id": offer_id}
+    return {
+        "message": "Knowledge share offer created successfully",
+        "offer_id": offer_id,
+    }
+
 
 @app.get("/memory/share/pending")
 async def get_pending_shares(

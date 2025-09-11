@@ -7,14 +7,14 @@ with environment snapshots to memOS.as for historical tracking.
 Specialized for MemOS memory management and agent memory protocol.
 """
 
-import asyncio
 import argparse
-import sys
-import json
+import asyncio
 import hashlib
+import json
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 # Add app to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
@@ -137,7 +137,7 @@ class MemOSThreadSummarizer:
                     if git_status.returncode == 0
                     else []
                 )
-            except:
+            except Exception:
                 git_changes = ["git_not_available"]
 
             # Get recent git commits
@@ -175,7 +175,7 @@ class MemOSThreadSummarizer:
                     if docker_ps.returncode == 0
                     else []
                 )
-            except:
+            except Exception:
                 memos_containers = ["docker_not_available"]
 
             # Get network status
@@ -197,7 +197,7 @@ class MemOSThreadSummarizer:
                     if network_inspect.returncode == 0
                     else []
                 )
-            except:
+            except Exception:
                 network_containers = ["network_not_available"]
 
             # Check memory storage status
@@ -280,7 +280,6 @@ class MemOSThreadSummarizer:
         memos_keywords = {
             "memory": content_lower.count("memory"),
             "memos": content_lower.count("memos"),
-            "memory": content_lower.count("memory"),
             "context": content_lower.count("context"),
             "storage": content_lower.count("storage"),
             "postgres": content_lower.count("postgres"),
@@ -362,8 +361,8 @@ class MemOSThreadSummarizer:
         summary_text = f"""
 MemOS Chat Thread Summary:
 
-Content: {analysis['total_words']} words across {analysis['total_lines']} lines
-Reading Time: ~{analysis['estimated_reading_time_minutes']:.1f} minutes
+Content: {analysis["total_words"]} words across {analysis["total_lines"]} lines
+Reading Time: ~{analysis["estimated_reading_time_minutes"]:.1f} minutes
 
 Key Memory Topics: {top_keywords_text}
 

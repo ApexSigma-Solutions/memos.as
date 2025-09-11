@@ -6,8 +6,8 @@ payload = {
     "metadata": {
         "task": "Troubleshoot ModuleNotFoundError",
         "status": "IN_PROGRESS",
-        "tags": ["troubleshooting", "python", "docker", "imports"]
-    }
+        "tags": ["troubleshooting", "python", "docker", "imports"],
+    },
 }
 
 try:
@@ -18,5 +18,7 @@ except httpx.RequestError as exc:
     print(f"An error occurred while requesting {exc.request.url!r}.")
     print(exc)
 except httpx.HTTPStatusError as exc:
-    print(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
+    print(
+        f"Error response {exc.response.status_code} while requesting {exc.request.url!r}."
+    )
     print(f"Response content: {exc.response.text}")

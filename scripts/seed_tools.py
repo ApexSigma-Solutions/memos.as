@@ -24,62 +24,62 @@ def seed_initial_tools():
             "name": "file_read",
             "description": "Read and analyze file contents from the filesystem",
             "usage": "Use this tool to read configuration files, source code, logs, or any text-based files",
-            "tags": ["filesystem", "read", "analysis", "text"]
+            "tags": ["filesystem", "read", "analysis", "text"],
         },
         {
             "name": "file_write",
             "description": "Create or modify files on the filesystem",
             "usage": "Use this tool to create new files, update configurations, or save generated content",
-            "tags": ["filesystem", "write", "create", "modify"]
+            "tags": ["filesystem", "write", "create", "modify"],
         },
         {
             "name": "bash_execute",
             "description": "Execute shell commands and scripts",
             "usage": "Use this tool to run system commands, build scripts, tests, or automation tasks",
-            "tags": ["shell", "command", "execute", "automation"]
+            "tags": ["shell", "command", "execute", "automation"],
         },
         {
             "name": "git_operations",
             "description": "Perform Git version control operations",
             "usage": "Use this tool for Git commands like commit, push, pull, branch management, and status checking",
-            "tags": ["git", "version-control", "commit", "branch"]
+            "tags": ["git", "version-control", "commit", "branch"],
         },
         {
             "name": "docker_management",
             "description": "Manage Docker containers and images",
             "usage": "Use this tool to build, run, stop Docker containers, and manage Docker images",
-            "tags": ["docker", "containers", "build", "deploy"]
+            "tags": ["docker", "containers", "build", "deploy"],
         },
         {
             "name": "api_testing",
             "description": "Test and validate API endpoints",
             "usage": "Use this tool to send HTTP requests, validate responses, and test API functionality",
-            "tags": ["api", "testing", "http", "validation"]
+            "tags": ["api", "testing", "http", "validation"],
         },
         {
             "name": "code_analysis",
             "description": "Analyze code quality, structure, and patterns",
             "usage": "Use this tool to review code, check for issues, analyze dependencies, and suggest improvements",
-            "tags": ["code", "analysis", "quality", "review"]
+            "tags": ["code", "analysis", "quality", "review"],
         },
         {
             "name": "database_query",
             "description": "Execute database queries and manage data",
             "usage": "Use this tool to query databases, manage schemas, and handle data operations",
-            "tags": ["database", "sql", "query", "data"]
+            "tags": ["database", "sql", "query", "data"],
         },
         {
             "name": "log_analysis",
             "description": "Parse and analyze log files and system outputs",
             "usage": "Use this tool to analyze application logs, system logs, and extract insights from log data",
-            "tags": ["logs", "analysis", "monitoring", "debugging"]
+            "tags": ["logs", "analysis", "monitoring", "debugging"],
         },
         {
             "name": "web_scraping",
             "description": "Extract data from web pages and APIs",
             "usage": "Use this tool to scrape web content, extract structured data, and gather information from online sources",
-            "tags": ["web", "scraping", "data-extraction", "automation"]
-        }
+            "tags": ["web", "scraping", "data-extraction", "automation"],
+        },
     ]
 
     # Register each tool
@@ -90,7 +90,7 @@ def seed_initial_tools():
                 name=tool["name"],
                 description=tool["description"],
                 usage=tool["usage"],
-                tags=tool["tags"]
+                tags=tool["tags"],
             )
 
             if tool_id:
@@ -104,6 +104,7 @@ def seed_initial_tools():
 
     print(f"\n🎉 Seeding complete! Registered {registered_count} new tools.")
     return registered_count
+
 
 def list_registered_tools():
     """List all currently registered tools"""
@@ -128,6 +129,7 @@ def list_registered_tools():
 
     except Exception as e:
         print(f"❌ Failed to list tools: {e}")
+
 
 if __name__ == "__main__":
     print("🔧 memOS.as Tool Seeding Script")

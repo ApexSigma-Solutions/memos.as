@@ -15,5 +15,7 @@
     "editor.codeActionsOnSave": {
         "source.fixAll.ruff": "explicit",
         "source.organizeImports.ruff": "explicit"
-    }
+    },
+    "bevel.java": "java",
+    "bevel.largeLanguageModel": "GEMINI"
 }

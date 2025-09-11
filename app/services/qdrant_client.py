@@ -83,7 +83,11 @@ class QdrantMemoryClient:
             point_id = str(uuid.uuid4())
 
             # Prepare payload with PostgreSQL memory ID and agent_id
-            payload = {"memory_id": memory_id, "agent_id": agent_id, "metadata": metadata or {}}
+            payload = {
+                "memory_id": memory_id,
+                "agent_id": agent_id,
+                "metadata": metadata or {},
+            }
 
             # Create point
             point = PointStruct(id=point_id, vector=embedding, payload=payload)
@@ -98,7 +102,11 @@ class QdrantMemoryClient:
             return None
 
     def search_similar_memories(
-        self, query_embedding: List[float], top_k: int = 5, score_threshold: float = 0.0, agent_id: Optional[str] = None
+        self,
+        query_embedding: List[float],
+        top_k: int = 5,
+        score_threshold: float = 0.0,
+        agent_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Perform semantic search to find similar memories.
@@ -118,8 +126,7 @@ class QdrantMemoryClient:
                 query_filter = models.Filter(
                     must=[
                         models.FieldCondition(
-                            key="agent_id",
-                            match=models.MatchValue(value=agent_id)
+                            key="agent_id", match=models.MatchValue(value=agent_id)
                         )
                     ]
                 )

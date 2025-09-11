@@ -42,7 +42,12 @@ class RedisLock:
                 return str(v)
         return str(v)
 
-    def acquire(self, blocking: bool = False, timeout_ms: Optional[int] = None, retry_delay_ms: int = 100) -> bool:
+    def acquire(
+        self,
+        blocking: bool = False,
+        timeout_ms: Optional[int] = None,
+        retry_delay_ms: int = 100,
+    ) -> bool:
         """Attempt to acquire the lock.
 
         Args:
@@ -66,7 +71,9 @@ class RedisLock:
         timeout_s = None if timeout_ms is None else float(timeout_ms) / 1000.0
         retry_delay = float(retry_delay_ms) / 1000.0
         while True:
-            result = self.redis_client.set(self.key, self.owner_id, nx=True, px=self.ttl_ms)
+            result = self.redis_client.set(
+                self.key, self.owner_id, nx=True, px=self.ttl_ms
+            )
             if result is not None and result is not False:
                 return True
             if timeout_s is not None and (time.monotonic() - start) >= timeout_s:
@@ -82,7 +89,10 @@ class RedisLock:
             res = self.release_script(keys=[self.key], args=[self.owner_id])
             released = int(res) == 1
             if not released:
-                logger.debug("RedisLock.release: lock not owned by caller or already released: %s", self.key)
+                logger.debug(
+                    "RedisLock.release: lock not owned by caller or already released: %s",
+                    self.key,
+                )
             return released
         except Exception as e:
             # Fallback for environments that don't support Lua scripts (e.g., fakeredis)
@@ -92,7 +102,9 @@ class RedisLock:
                 if current_owner == self.owner_id:
                     return bool(self.redis_client.delete(self.key))
                 else:
-                    logger.debug("RedisLock.release: lock not owned by caller: %s", self.key)
+                    logger.debug(
+                        "RedisLock.release: lock not owned by caller: %s", self.key
+                    )
                     return False
             except Exception:
                 logger.exception("RedisLock.release: error releasing lock %s", self.key)

@@ -20,7 +20,8 @@ try:
         "memory_expiration_runs_total", "Total number of memory expiration job runs"
     )
     MEMORY_EXPIRATION_ERRORS_TOTAL = Counter(
-        "memory_expiration_errors_total", "Total number of errors during memory expiration"
+        "memory_expiration_errors_total",
+        "Total number of errors during memory expiration",
     )
     MEMORIES_DELETED_TOTAL = Counter(
         "memories_deleted_total", "Total number of expired memories deleted"
@@ -32,7 +33,8 @@ try:
         "memory_expiration_duration_seconds", "Time spent running memory expiration job"
     )
     MEMORY_EXPIRATION_LOCK_ACQUIRE_TIME = Histogram(
-        "memory_expiration_lock_acquire_time_seconds", "Time spent acquiring expiration lock"
+        "memory_expiration_lock_acquire_time_seconds",
+        "Time spent acquiring expiration lock",
     )
     MEMORY_EXPIRATION_ACTIVE = Gauge(
         "memory_expiration_active", "Whether memory expiration job is currently running"
@@ -40,17 +42,28 @@ try:
 except ValueError:
     # Metrics already registered (e.g., in tests)
     from prometheus_client import REGISTRY
-    MEMORY_EXPIRATION_RUNS_TOTAL = REGISTRY._names_to_collectors["memory_expiration_runs_total"]
-    MEMORY_EXPIRATION_ERRORS_TOTAL = REGISTRY._names_to_collectors["memory_expiration_errors_total"]
+
+    MEMORY_EXPIRATION_RUNS_TOTAL = REGISTRY._names_to_collectors[
+        "memory_expiration_runs_total"
+    ]
+    MEMORY_EXPIRATION_ERRORS_TOTAL = REGISTRY._names_to_collectors[
+        "memory_expiration_errors_total"
+    ]
     MEMORIES_DELETED_TOTAL = REGISTRY._names_to_collectors["memories_deleted_total"]
     EMBEDDINGS_DELETED_TOTAL = REGISTRY._names_to_collectors["embeddings_deleted_total"]
-    MEMORY_EXPIRATION_DURATION = REGISTRY._names_to_collectors["memory_expiration_duration_seconds"]
-    MEMORY_EXPIRATION_LOCK_ACQUIRE_TIME = REGISTRY._names_to_collectors["memory_expiration_lock_acquire_time_seconds"]
+    MEMORY_EXPIRATION_DURATION = REGISTRY._names_to_collectors[
+        "memory_expiration_duration_seconds"
+    ]
+    MEMORY_EXPIRATION_LOCK_ACQUIRE_TIME = REGISTRY._names_to_collectors[
+        "memory_expiration_lock_acquire_time_seconds"
+    ]
     MEMORY_EXPIRATION_ACTIVE = REGISTRY._names_to_collectors["memory_expiration_active"]
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def delete_embedding_with_retry(qdrant_client, embedding_id):
     qdrant_client.delete_embedding(embedding_id)
+
 
 def process_expired_memories_once():
     """Processes and deletes expired memories in a single run."""
@@ -67,12 +80,16 @@ def process_expired_memories_once():
     lock = RedisLock(redis_client.client, lock_key, ttl_ms=300000)  # 5 minute TTL
 
     lock_start = time.time()
-    acquired = lock.acquire(blocking=True, timeout_ms=10000)  # Wait up to 10 seconds for lock
+    acquired = lock.acquire(
+        blocking=True, timeout_ms=10000
+    )  # Wait up to 10 seconds for lock
     lock_duration = time.time() - lock_start
     MEMORY_EXPIRATION_LOCK_ACQUIRE_TIME.observe(lock_duration)
 
     if not acquired:
-        logger.warning("Could not acquire lock for memory expiration after 10 seconds. Skipping run.")
+        logger.warning(
+            "Could not acquire lock for memory expiration after 10 seconds. Skipping run."
+        )
         MEMORY_EXPIRATION_ACTIVE.set(0)
         return
 
@@ -82,18 +99,26 @@ def process_expired_memories_once():
         deleted_embeddings = 0
 
         with postgres_client.get_session() as session:
-            expired_memories = session.query(Memory).filter(
-                Memory.expires_at <= datetime.utcnow()
-            ).all()
+            expired_memories = (
+                session.query(Memory)
+                .filter(Memory.expires_at <= datetime.utcnow())
+                .all()
+            )
 
             if expired_memories:
-                logger.info(f"Found {len(expired_memories)} expired memories to process.")
+                logger.info(
+                    f"Found {len(expired_memories)} expired memories to process."
+                )
                 for memory in expired_memories:
                     try:
                         if memory.embedding_id:
-                            delete_embedding_with_retry(qdrant_client, memory.embedding_id)
+                            delete_embedding_with_retry(
+                                qdrant_client, memory.embedding_id
+                            )
                             deleted_embeddings += 1
-                            logger.debug(f"Deleted embedding {memory.embedding_id} for memory {memory.id}")
+                            logger.debug(
+                                f"Deleted embedding {memory.embedding_id} for memory {memory.id}"
+                            )
 
                         session.delete(memory)
                         deleted_memories += 1
@@ -111,7 +136,9 @@ def process_expired_memories_once():
         duration = time.time() - start_time
         MEMORY_EXPIRATION_DURATION.observe(duration)
 
-        logger.info(f"Memory expiration job completed. Deleted {deleted_memories} memories and {deleted_embeddings} embeddings in {duration:.2f}s")
+        logger.info(
+            f"Memory expiration job completed. Deleted {deleted_memories} memories and {deleted_embeddings} embeddings in {duration:.2f}s"
+        )
 
     except Exception as e:
         logger.error(f"Critical error during memory expiration: {e}")
@@ -124,10 +151,13 @@ def process_expired_memories_once():
             logger.error(f"Error releasing expiration lock: {e}")
         MEMORY_EXPIRATION_ACTIVE.set(0)
 
+
 async def run_expiration_loop():
     """Runs the memory expiration job in a loop with proper error handling."""
     logger = config.get_logger(__name__)
-    interval_seconds = config.get('MEMORY_EXPIRATION_INTERVAL_SECONDS', 300)  # Default 5 minutes
+    interval_seconds = config.get(
+        "MEMORY_EXPIRATION_INTERVAL_SECONDS", 300
+    )  # Default 5 minutes
 
     logger.info(f"Starting memory expiration loop with {interval_seconds}s interval")
 
@@ -148,6 +178,7 @@ async def run_expiration_loop():
             logger.error(f"Error during sleep in expiration loop: {e}")
             # Sleep for a shorter time if there's an error
             await asyncio.sleep(60)
+
 
 if __name__ == "__main__":
     asyncio.run(run_expiration_loop())

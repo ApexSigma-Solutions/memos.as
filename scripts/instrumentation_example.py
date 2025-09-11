@@ -147,17 +147,13 @@ class MemoryService:
                 operation_type="store", status="success"
             ).inc()
 
-            memory_operation_duration_seconds.labels(
-                operation_type="store"
-            ).observe(duration)
+            memory_operation_duration_seconds.labels(operation_type="store").observe(
+                duration
+            )
 
             # Update memory size
-            memory_size = len(
-                json.dumps(self.sessions[session_id]).encode("utf-8")
-            )
-            persistent_memory_size_bytes.labels(session_id=session_id).set(
-                memory_size
-            )
+            memory_size = len(json.dumps(self.sessions[session_id]).encode("utf-8"))
+            persistent_memory_size_bytes.labels(session_id=session_id).set(memory_size)
 
             # Log success
             logger.info(
@@ -172,9 +168,7 @@ class MemoryService:
             return True
 
         except Exception as e:
-            memory_operations_total.labels(
-                operation_type="store", status="error"
-            ).inc()
+            memory_operations_total.labels(operation_type="store", status="error").inc()
 
             logger.error(
                 "Memory operation failed",
@@ -187,9 +181,7 @@ class MemoryService:
             )
             return False
 
-    def search_memory(
-        self, session_id: str, query: str, query_type: str = "semantic"
-    ):
+    def search_memory(self, session_id: str, query: str, query_type: str = "semantic"):
         """Search memory with instrumentation"""
         start_time = time.time()
 
@@ -215,13 +207,11 @@ class MemoryService:
                 operation_type="search", status="success"
             ).inc()
 
-            memory_operation_duration_seconds.labels(
-                operation_type="search"
-            ).observe(duration)
-
-            memory_search_results.labels(query_type=query_type).set(
-                len(results)
+            memory_operation_duration_seconds.labels(operation_type="search").observe(
+                duration
             )
+
+            memory_search_results.labels(query_type=query_type).set(len(results))
 
             logger.info(
                 "Memory search completed",
@@ -288,9 +278,7 @@ class AIService:
                 model=model, operation="inference"
             ).observe(duration)
 
-            token_processing_rate.labels(model=model).set(
-                tokens_processed / duration
-            )
+            token_processing_rate.labels(model=model).set(tokens_processed / duration)
 
             ai_service_requests_total.labels(
                 service="inference", status="success"
@@ -314,9 +302,7 @@ class AIService:
             return response
 
         except Exception as e:
-            ai_service_requests_total.labels(
-                service="inference", status="error"
-            ).inc()
+            ai_service_requests_total.labels(service="inference", status="error").inc()
 
             logger.error(
                 "AI inference failed",
@@ -356,9 +342,9 @@ def after_request(response):
             method=method, endpoint=endpoint, status=status
         ).inc()
 
-        http_request_duration_seconds.labels(
-            method=method, endpoint=endpoint
-        ).observe(duration)
+        http_request_duration_seconds.labels(method=method, endpoint=endpoint).observe(
+            duration
+        )
 
         http_requests_in_flight.labels(endpoint=endpoint).dec()
 
@@ -379,9 +365,7 @@ def after_request(response):
 @app.route("/health")
 def health():
     """Health check endpoint"""
-    return jsonify(
-        {"status": "healthy", "timestamp": datetime.now().isoformat()}
-    )
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 
 @app.route("/metrics")

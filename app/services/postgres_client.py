@@ -3,7 +3,16 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, create_engine, Float
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    Float,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -147,7 +156,11 @@ class PostgresClient:
             with self.get_session() as session:
                 # Using the existing 'tier' column to store agent_id to avoid schema migration.
                 memory = Memory(
-                    content=content, tier=agent_id, memory_metadata=metadata, embedding_id=embedding_id, expires_at=expires_at
+                    content=content,
+                    tier=agent_id,
+                    memory_metadata=metadata,
+                    embedding_id=embedding_id,
+                    expires_at=expires_at,
                 )
                 session.add(memory)
                 session.flush()  # Flush to get the ID but don't commit yet
@@ -157,7 +170,9 @@ class PostgresClient:
                     print("⚠️  Memory ID is None after flush - database issue")
                     return None
 
-                print(f"✅ Successfully stored memory with ID: {memory_id} for agent {agent_id}")
+                print(
+                    f"✅ Successfully stored memory with ID: {memory_id} for agent {agent_id}"
+                )
                 return memory_id
         except Exception as e:
             print(f"❌ Error storing memory in PostgreSQL: {e}")
@@ -175,7 +190,7 @@ class PostgresClient:
                     return {
                         "id": memory.id,
                         "content": memory.content,
-                        "agent_id": memory.tier, # Using tier column as agent_id
+                        "agent_id": memory.tier,  # Using tier column as agent_id
                         "metadata": memory.memory_metadata,
                         "embedding_id": memory.embedding_id,
                         "created_at": memory.created_at,
@@ -195,7 +210,7 @@ class PostgresClient:
                     {
                         "id": memory.id,
                         "content": memory.content,
-                        "agent_id": memory.tier, # Using tier column as agent_id
+                        "agent_id": memory.tier,  # Using tier column as agent_id
                         "metadata": memory.memory_metadata,
                         "embedding_id": memory.embedding_id,
                         "created_at": memory.created_at,
@@ -330,7 +345,14 @@ class PostgresClient:
             print(f"Error retrieving all tools: {e}")
             return []
 
-    def create_knowledge_share_request(self, requester_agent_id: str, target_agent_id: str, query: str, confidence_threshold: float, sharing_policy: str) -> Optional[int]:
+    def create_knowledge_share_request(
+        self,
+        requester_agent_id: str,
+        target_agent_id: str,
+        query: str,
+        confidence_threshold: float,
+        sharing_policy: str,
+    ) -> Optional[int]:
         """Create a new knowledge share request."""
         try:
             with self.get_session() as session:
@@ -348,7 +370,13 @@ class PostgresClient:
             print(f"Error creating knowledge share request: {e}")
             return None
 
-    def create_knowledge_share_offer(self, request_id: int, offering_agent_id: str, memory_id: int, confidence_score: float) -> Optional[int]:
+    def create_knowledge_share_offer(
+        self,
+        request_id: int,
+        offering_agent_id: str,
+        memory_id: int,
+        confidence_score: float,
+    ) -> Optional[int]:
         """Create a new knowledge share offer."""
         try:
             with self.get_session() as session:
@@ -365,14 +393,20 @@ class PostgresClient:
             print(f"Error creating knowledge share offer: {e}")
             return None
 
-    def get_pending_knowledge_share_requests(self, agent_id: str) -> List[Dict[str, Any]]:
+    def get_pending_knowledge_share_requests(
+        self, agent_id: str
+    ) -> List[Dict[str, Any]]:
         """Get pending knowledge share requests for a given agent."""
         try:
             with self.get_session() as session:
-                requests = session.query(KnowledgeShareRequestDB).filter(
-                    KnowledgeShareRequestDB.target_agent_id == agent_id,
-                    KnowledgeShareRequestDB.status == "pending"
-                ).all()
+                requests = (
+                    session.query(KnowledgeShareRequestDB)
+                    .filter(
+                        KnowledgeShareRequestDB.target_agent_id == agent_id,
+                        KnowledgeShareRequestDB.status == "pending",
+                    )
+                    .all()
+                )
                 return [
                     {
                         "id": request.id,
@@ -390,11 +424,17 @@ class PostgresClient:
             print(f"Error getting pending knowledge share requests: {e}")
             return []
 
-    def get_knowledge_share_request_by_id(self, request_id: int) -> Optional[Dict[str, Any]]:
+    def get_knowledge_share_request_by_id(
+        self, request_id: int
+    ) -> Optional[Dict[str, Any]]:
         """Get a knowledge share request by its ID."""
         try:
             with self.get_session() as session:
-                request = session.query(KnowledgeShareRequestDB).filter(KnowledgeShareRequestDB.id == request_id).first()
+                request = (
+                    session.query(KnowledgeShareRequestDB)
+                    .filter(KnowledgeShareRequestDB.id == request_id)
+                    .first()
+                )
                 if request:
                     return {
                         "id": request.id,

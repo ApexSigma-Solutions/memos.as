@@ -16,20 +16,30 @@ from prometheus_client import Counter
 # Prometheus Metrics
 try:
     APEX_MEMORY_EXPIRATION_RUNS_TOTAL = Counter(
-        "apex_memory_expiration_runs_total", "Total number of memory expiration job runs"
+        "apex_memory_expiration_runs_total",
+        "Total number of memory expiration job runs",
     )
     APEX_MEMORIES_DELETED_TOTAL = Counter(
         "apex_memories_deleted_total", "Total number of expired memories deleted"
     )
     APEX_MEMORY_EXPIRATION_ERRORS_TOTAL = Counter(
-        "apex_memory_expiration_errors_total", "Total number of errors during memory expiration"
+        "apex_memory_expiration_errors_total",
+        "Total number of errors during memory expiration",
     )
 except ValueError:
     # Metrics already registered (e.g., in tests)
     from prometheus_client import REGISTRY
-    APEX_MEMORY_EXPIRATION_RUNS_TOTAL = REGISTRY._names_to_collectors["apex_memory_expiration_runs_total"]
-    APEX_MEMORIES_DELETED_TOTAL = REGISTRY._names_to_collectors["apex_memories_deleted_total"]
-    APEX_MEMORY_EXPIRATION_ERRORS_TOTAL = REGISTRY._names_to_collectors["apex_memory_expiration_errors_total"]
+
+    APEX_MEMORY_EXPIRATION_RUNS_TOTAL = REGISTRY._names_to_collectors[
+        "apex_memory_expiration_runs_total"
+    ]
+    APEX_MEMORIES_DELETED_TOTAL = REGISTRY._names_to_collectors[
+        "apex_memories_deleted_total"
+    ]
+    APEX_MEMORY_EXPIRATION_ERRORS_TOTAL = REGISTRY._names_to_collectors[
+        "apex_memory_expiration_errors_total"
+    ]
+
 
 class RedisClient:
     """
@@ -195,7 +205,12 @@ class RedisClient:
 
     # === Working Memory Caching (Tier 1) ===
 
-    def store_working_memory(self, key: str, memory_data: Dict[str, Any], expire_seconds: Optional[int] = None) -> bool:
+    def store_working_memory(
+        self,
+        key: str,
+        memory_data: Dict[str, Any],
+        expire_seconds: Optional[int] = None,
+    ) -> bool:
         """Store working memory with shorter TTL."""
         if not self.is_connected():
             return False
@@ -207,7 +222,11 @@ class RedisClient:
                 "tier": "working",
             }
 
-            ttl = expire_seconds if expire_seconds is not None else self.WORKING_MEMORY_TTL
+            ttl = (
+                expire_seconds
+                if expire_seconds is not None
+                else self.WORKING_MEMORY_TTL
+            )
 
             self.client.setex(cache_key, ttl, json.dumps(memory_with_meta))
             self.client.incr("cache:working_memory:stored")
@@ -290,26 +309,40 @@ class RedisClient:
 
         try:
             # Invalidate query result caches (they may now be stale)
-            query_keys = list(scan_iter(self.client, self._get_namespaced_key("query:*")))
+            query_keys = list(
+                scan_iter(self.client, self._get_namespaced_key("query:*"))
+            )
             if query_keys:
                 self.client.delete(*query_keys)
                 self.logger.info(f"Invalidated {len(query_keys)} query cache entries")
 
             # Invalidate embedding caches
-            embedding_keys = list(scan_iter(self.client, self._get_namespaced_key("embedding:*")))
+            embedding_keys = list(
+                scan_iter(self.client, self._get_namespaced_key("embedding:*"))
+            )
             if embedding_keys:
                 self.client.delete(*embedding_keys)
-                self.logger.info(f"Invalidated {len(embedding_keys)} embedding cache entries")
+                self.logger.info(
+                    f"Invalidated {len(embedding_keys)} embedding cache entries"
+                )
 
             # Invalidate working memory caches
-            working_memory_keys = list(scan_iter(self.client, self._get_namespaced_key("working_memory:*")))
+            working_memory_keys = list(
+                scan_iter(self.client, self._get_namespaced_key("working_memory:*"))
+            )
             if working_memory_keys:
                 self.client.delete(*working_memory_keys)
-                self.logger.info(f"Invalidated {len(working_memory_keys)} working memory cache entries")
+                self.logger.info(
+                    f"Invalidated {len(working_memory_keys)} working memory cache entries"
+                )
 
             # If specific memory_id provided, invalidate related caches
             if memory_id:
-                specific_keys = list(scan_iter(self.client, self._get_namespaced_key(f"*memory:{memory_id}*")))
+                specific_keys = list(
+                    scan_iter(
+                        self.client, self._get_namespaced_key(f"*memory:{memory_id}*")
+                    )
+                )
                 if specific_keys:
                     self.client.delete(*specific_keys)
                     self.logger.info(
@@ -329,7 +362,9 @@ class RedisClient:
             return False
 
         try:
-            tool_keys = list(scan_iter(self.client, self._get_namespaced_key("tool_registry:*")))
+            tool_keys = list(
+                scan_iter(self.client, self._get_namespaced_key("tool_registry:*"))
+            )
             if tool_keys:
                 self.client.delete(*tool_keys)
                 self.logger.info(f"Invalidated {len(tool_keys)} tool cache entries")
@@ -406,7 +441,9 @@ class RedisClient:
         try:
             # Create cache key from prompt and parameters
             prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
-            cache_key = self._get_namespaced_key(f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}")
+            cache_key = self._get_namespaced_key(
+                f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}"
+            )
 
             cache_data = {
                 "model": model,
@@ -438,7 +475,9 @@ class RedisClient:
 
         try:
             prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
-            cache_key = self._get_namespaced_key(f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}")
+            cache_key = self._get_namespaced_key(
+                f"llm:{model}:{prompt_hash}:{temperature}:{max_tokens}"
+            )
 
             cached_data = self.client.get(cache_key)
             if cached_data:
@@ -477,13 +516,22 @@ class RedisClient:
             }
 
             # Store individual usage record
-            usage_key = self._get_namespaced_key(f"llm_usage:{model}:{int(time.time())}")
+            usage_key = self._get_namespaced_key(
+                f"llm_usage:{model}:{int(time.time())}"
+            )
             self.client.setex(usage_key, 2592000, json.dumps(usage_data))  # 30 days
 
             # Update aggregate counters
-            self.client.incrby(self._get_namespaced_key(f"llm:total_tokens:{model}"), total_tokens)
-            self.client.incrby(self._get_namespaced_key(f"llm:prompt_tokens:{model}"), prompt_tokens)
-            self.client.incrby(self._get_namespaced_key(f"llm:completion_tokens:{model}"), completion_tokens)
+            self.client.incrby(
+                self._get_namespaced_key(f"llm:total_tokens:{model}"), total_tokens
+            )
+            self.client.incrby(
+                self._get_namespaced_key(f"llm:prompt_tokens:{model}"), prompt_tokens
+            )
+            self.client.incrby(
+                self._get_namespaced_key(f"llm:completion_tokens:{model}"),
+                completion_tokens,
+            )
             self.client.incr(self._get_namespaced_key(f"llm:requests:{model}"))
 
             # Maintain a set of known models to avoid scanning keyspace for model names
@@ -519,7 +567,11 @@ class RedisClient:
 
                 # Fallback to scan if no models were registered
                 if not models:
-                    usage_keys = list(scan_iter(self.client, self._get_namespaced_key("llm:requests:*")))
+                    usage_keys = list(
+                        scan_iter(
+                            self.client, self._get_namespaced_key("llm:requests:*")
+                        )
+                    )
                     models = [k.rsplit(":", 1)[-1] for k in usage_keys]
 
             for model_name in models:
@@ -528,16 +580,30 @@ class RedisClient:
                     model_name = model_name.decode()
                 stats[model_name] = {
                     "total_requests": int(
-                        self.client.get(self._get_namespaced_key(f"llm:requests:{model_name}")) or 0
+                        self.client.get(
+                            self._get_namespaced_key(f"llm:requests:{model_name}")
+                        )
+                        or 0
                     ),
                     "total_tokens": int(
-                        self.client.get(self._get_namespaced_key(f"llm:total_tokens:{model_name}")) or 0
+                        self.client.get(
+                            self._get_namespaced_key(f"llm:total_tokens:{model_name}")
+                        )
+                        or 0
                     ),
                     "prompt_tokens": int(
-                        self.client.get(self._get_namespaced_key(f"llm:prompt_tokens:{model_name}")) or 0
+                        self.client.get(
+                            self._get_namespaced_key(f"llm:prompt_tokens:{model_name}")
+                        )
+                        or 0
                     ),
                     "completion_tokens": int(
-                        self.client.get(self._get_namespaced_key(f"llm:completion_tokens:{model_name}")) or 0
+                        self.client.get(
+                            self._get_namespaced_key(
+                                f"llm:completion_tokens:{model_name}"
+                            )
+                        )
+                        or 0
                     ),
                 }
 
@@ -571,11 +637,15 @@ class RedisClient:
             }
 
             # Store individual performance record
-            perf_key = self._get_namespaced_key(f"llm_perf:{model}:{operation}:{int(time.time())}")
+            perf_key = self._get_namespaced_key(
+                f"llm_perf:{model}:{operation}:{int(time.time())}"
+            )
             self.client.setex(perf_key, 604800, json.dumps(perf_data))  # 7 days
 
             # Update rolling averages (last 100 requests)
-            success_key = self._get_namespaced_key(f"llm_perf_success:{model}:{operation}")
+            success_key = self._get_namespaced_key(
+                f"llm_perf_success:{model}:{operation}"
+            )
             time_key = self._get_namespaced_key(f"llm_perf_time:{model}:{operation}")
 
             # Use Redis lists to maintain rolling windows
@@ -597,7 +667,9 @@ class RedisClient:
             return {"error": "Redis not connected"}
 
         try:
-            success_key = self._get_namespaced_key(f"llm_perf_success:{model}:{operation}")
+            success_key = self._get_namespaced_key(
+                f"llm_perf_success:{model}:{operation}"
+            )
             time_key = self._get_namespaced_key(f"llm_perf_time:{model}:{operation}")
 
             success_scores = self.client.lrange(success_key, 0, -1)
@@ -696,7 +768,7 @@ class RedisClient:
                     "used_memory": 0,
                     "used_memory_human": "0B",
                     "max_memory": 0,
-                    "note": "Memory info not available in test environment"
+                    "note": "Memory info not available in test environment",
                 }
 
             return stats

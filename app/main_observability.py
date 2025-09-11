@@ -103,9 +103,7 @@ async def get_metrics():
 
 
 @app.post("/chat")
-@trace_llm_operation(
-    operation_name="chat_completion", model="gpt-4", include_io=True
-)
+@trace_llm_operation(operation_name="chat_completion", model="gpt-4", include_io=True)
 async def chat_completion(
     message: str,
     user_id: str = "default",
@@ -245,9 +243,7 @@ async def test_langfuse_integration(
 
     # Test authentication
     if not obs.langfuse.auth_check():
-        raise HTTPException(
-            status_code=503, detail="Langfuse authentication failed"
-        )
+        raise HTTPException(status_code=503, detail="Langfuse authentication failed")
 
     # Create test trace
     trace_id = obs.trace_llm_call(
@@ -302,6 +298,4 @@ if __name__ == "__main__":
     print("   - Dashboard: http://localhost:8090/observability/dashboard")
     print("   - Langfuse Test: http://localhost:8090/test/langfuse")
 
-    uvicorn.run(
-        "main:app", host="0.0.0.0", port=8090, reload=True, log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8090, reload=True, log_level="info")
