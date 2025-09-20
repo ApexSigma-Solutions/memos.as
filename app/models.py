@@ -4,18 +4,6 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class StoreRequest(BaseModel):
-    content: str
-    metadata: Optional[Dict[str, Any]] = None
-    agent_id: Optional[str] = "default_agent"
-    expires_at: Optional[datetime] = None
-
-
-class QueryRequest(BaseModel):
-    query: str
-    top_k: Optional[int] = 5
-    agent_id: Optional[str] = "default_agent"
-
 
 class ToolRegistrationRequest(BaseModel):
     name: str
