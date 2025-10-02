@@ -27,7 +27,8 @@ def integrate_observability():
     print("   pip install -r requirements-observability.txt")
 
     print("\n2. Add to your main application file:")
-    print("""
+    print(
+        """
    from prometheus_client import generate_latest
    from instrumentation_example import (
        logger,
@@ -40,10 +41,12 @@ def integrate_observability():
    @app.route('/metrics')
    def metrics():
        return generate_latest()
-   """)
+   """
+    )
 
     print("\n3. Instrument your existing functions:")
-    print("""
+    print(
+        """
    # Before your memory operations:
    start_time = time.time()
 
@@ -57,10 +60,12 @@ def integrate_observability():
                operation="store",
                duration=duration*1000,
                session_id=session_id)
-   """)
+   """
+    )
 
     print("\n4. Update your Docker configuration:")
-    print("""
+    print(
+        """
    # Add to docker-compose.yml:
    services:
      memos-app:
@@ -68,7 +73,8 @@ def integrate_observability():
          - "8090:8090"  # Expose metrics port
        environment:
          - METRICS_ENABLED=true
-   """)
+   """
+    )
 
     print("\n5. Test the integration:")
     print("   curl http://localhost:8090/metrics")

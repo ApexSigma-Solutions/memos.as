@@ -27,7 +27,9 @@ async def setup_minimal_postgres():
 
         # Test basic connection
         with client.get_session() as session:
-            session.execute("SELECT 1")
+            from sqlalchemy import text
+
+            session.execute(text("SELECT 1"))
 
         print("✅ PostgreSQL connection established")
         return True

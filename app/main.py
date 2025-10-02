@@ -137,7 +137,9 @@ async def health_check(
         postgres_client = get_postgres_client()
         # Test with a simple query
         with postgres_client.get_session() as session:
-            session.execute("SELECT 1")
+            from sqlalchemy import text
+
+            session.execute(text("SELECT 1"))
         services_status["postgres"] = "connected"
         observability.active_connections.labels(database="postgresql").set(1)
     except Exception as e:
@@ -194,9 +196,11 @@ async def health_check(
             "services": services_status,
             "integration_ready": integration_ready,
             "qdrant_collection": qdrant_info if "qdrant_info" in locals() else None,
-            "operational_mode": "full"
-            if all("connected" in status for status in services_status.values())
-            else "degraded",
+            "operational_mode": (
+                "full"
+                if all("connected" in status for status in services_status.values())
+                else "degraded"
+            ),
         }
     )
 
@@ -570,6 +574,7 @@ async def store_memory_by_tier(
                 "success": True,
                 "tier": 1,
                 "memory_id": key,
+                "key": key,
                 "message": "Memory stored in Redis",
             }
         except Exception as e:
@@ -649,7 +654,7 @@ async def store_memory_by_tier(
             operational_mode = (
                 "full" if neo4j_info.get("memory_node_created") else "degraded"
             )
-            return {
+            response = {
                 "success": True,
                 "tier": 3,
                 "memory_id": memory_id,
@@ -657,6 +662,9 @@ async def store_memory_by_tier(
                 "operational_mode": operational_mode,
                 "message": f"Memory stored in {operational_mode} mode",
             }
+            if "node" in neo4j_info:
+                response["node"] = neo4j_info["node"]
+            return response
         except Exception as e:
             observability.record_memory_operation("neo4j_store", "failed", "tier3")
             raise HTTPException(

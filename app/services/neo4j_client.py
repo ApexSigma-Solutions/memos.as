@@ -24,11 +24,29 @@ class Neo4jClient:
     """
 
     def __init__(self):
-        self.uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-        self.username = os.environ.get(
-            "NEO4J_USER", os.environ.get("NEO4J_USERNAME", "neo4j")
-        )
-        self.password = os.environ.get("NEO4J_PASSWORD", "password")
+        # In Docker compose networks the neo4j service is reachable at the hostname 'neo4j'.
+        # Default to that so tests running inside containers can connect without extra env vars.
+        self.uri = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
+        # Allow docker-compose to provide credentials via NEO4J_AUTH (format: user/password)
+        neo4j_auth = os.environ.get("NEO4J_AUTH")
+        if neo4j_auth and "/" in neo4j_auth:
+            try:
+                auth_user, auth_pass = neo4j_auth.split("/", 1)
+                self.username = auth_user
+                self.password = auth_pass
+            except Exception:
+                # Fall back to explicit env vars if parsing fails
+                self.username = os.environ.get(
+                    "NEO4J_USER", os.environ.get("NEO4J_USERNAME", "neo4j")
+                )
+                # Default password mirrors the one configured for the neo4j service in docker-compose
+                self.password = os.environ.get("NEO4J_PASSWORD", "apexsigma_neo4j_password")
+        else:
+            self.username = os.environ.get(
+                "NEO4J_USER", os.environ.get("NEO4J_USERNAME", "neo4j")
+            )
+            # Default password mirrors the one configured for the neo4j service in docker-compose
+            self.password = os.environ.get("NEO4J_PASSWORD", "apexsigma_neo4j_password")
 
         self.driver: Optional[Driver] = None
         self._connect()

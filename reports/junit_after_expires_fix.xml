@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="14" skipped="0" tests="33" time="10.769" timestamp="2025-09-25T20:54:56.512505" hostname="158c5d704f48"><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[0]" time="0.021"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 0
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[1]" time="0.016"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 1
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[2]" time="0.018"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 2
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[3]" time="0.015"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 3
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[4]" time="0.017"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 4
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[5]" time="0.017"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 5
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[6]" time="0.020"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 6
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[7]" time="0.018"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 7
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[8]" time="0.019"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 8
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[9]" time="0.017"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 9
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_graph_api" name="test_graph_query_endpoint" time="0.062" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_memory_storage_endpoint" time="2.196" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_memory_retrieval_endpoint" time="0.076" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_memory_search_endpoint" time="0.098" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_tiered_memory_storage" time="0.055" /><testcase classname="app.tests.test_ingest_integration.TestMemOSHealthForIntegration" name="test_health_check_detailed" time="0.017" /><testcase classname="app.tests.test_ingest_integration" name="test_memOS_ready_for_integration" time="0.289" /><testcase classname="app.tests.test_integration" name="test_health_check" time="0.013" /><testcase classname="app.tests.test_integration" name="test_tool_registration" time="0.011"><failure message="Failed: Tool registration failed: {&quot;detail&quot;:&quot;Error registering tool: 400: Failed to register tool. Tool name might already exist.&quot;}">&gt;   ???
+E   Failed: Tool registration failed: {"detail":"Error registering tool: 400: Failed to register tool. Tool name might already exist."}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_integration.py:46: Failed</failure></testcase><testcase classname="app.tests.test_integration" name="test_memory_store" time="0.085" /><testcase classname="app.tests.test_integration" name="test_memory_query" time="0.218" /><testcase classname="app.tests.test_integration" name="test_end_to_end_flow" time="0.152" /><testcase classname="app.tests.test_neo4j_client" name="test_neo4j_connection" time="0.026" /><testcase classname="app.tests.test_neo4j_client" name="test_create_and_get_concept_node" time="0.149" /><testcase classname="app.tests.test_neo4j_client" name="test_create_relationship" time="0.230" /><testcase classname="app.tests.test_simple" name="test_simple_assert" time="0.001" /><testcase classname="app.tests.test_tiered_storage" name="test_store_memory_tier1" time="0.016"><failure message="AssertionError: assert 'key' in {'memory_id': '1e26bb88d0a440cbcc19fc1ea81c4299', 'message': 'Memory stored in Redis', 'success': True, 'tier': 1}">redis_client = &lt;app.services.redis_client.RedisClient object at 0x72ef3af8b250&gt;
+
+&gt;   ???
+E   AssertionError: assert 'key' in {'memory_id': '1e26bb88d0a440cbcc19fc1ea81c4299', 'message': 'Memory stored in Redis', 'success': True, 'tier': 1}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:47: AssertionError</failure></testcase><testcase classname="app.tests.test_tiered_storage" name="test_store_memory_tier2" time="0.248" /><testcase classname="app.tests.test_tiered_storage" name="test_store_memory_tier3" time="0.063"><failure message="AssertionError: assert 'node' in {'knowledge_graph': {'concepts': ['Memory'], 'concepts_extracted': 1, 'memory_node_created': True, 'node': {'content':...'_Time__second': 6, ...}}}}, 'memory_id': 17, 'message': 'Memory stored in full mode', 'operational_mode': 'full', ...}">neo4j_client = &lt;app.services.neo4j_client.Neo4jClient object at 0x72ef401aa9e0&gt;
+
+&gt;   ???
+E   AssertionError: assert 'node' in {'knowledge_graph': {'concepts': ['Memory'], 'concepts_extracted': 1, 'memory_node_created': True, 'node': {'content':...'_Time__second': 6, ...}}}}, 'memory_id': 17, 'message': 'Memory stored in full mode', 'operational_mode': 'full', ...}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:103: AssertionError</failure></testcase><testcase classname="libs.apexsigma-core.tests.test_models" name="test_agent_persona" time="0.008" /><testcase classname="libs.apexsigma-core.tests.test_models" name="test_task" time="0.001" /><testcase classname="libs.apexsigma-core.tests.test_utils" name="test_settings" time="0.122"><failure message="pydantic.errors.PydanticUserError: &quot;Config&quot; and &quot;model_config&quot; cannot be used together&#10;&#10;For further information visit https://errors.pydantic.dev/2.11/u/config-both">@patch.dict('os.environ', {
+        'DATABASE_URL': 'test_db_url',
+        'REDIS_URL': 'test_redis_url',
+        'QDRANT_URL': 'test_qdrant_url',
+        'NEO4J_URL': 'test_neo4j_url'
+    })
+    def test_settings():
+&gt;       from apexsigma_core.utils.config import Settings
+
+libs/apexsigma-core/tests/test_utils.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+libs/apexsigma-core/apexsigma_core/utils/config.py:5: in &lt;module&gt;
+    class Settings(BaseSettings):
+/tmp/poetry_cache/virtualenvs/memos-as-MATOk_fk-py3.13/lib/python3.13/site-packages/pydantic/_internal/_model_construction.py:110: in __new__
+    config_wrapper = ConfigWrapper.for_model(bases, namespace, kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cls = &lt;class 'pydantic._internal._config.ConfigWrapper'&gt;
+bases = (&lt;class 'pydantic_settings.main.BaseSettings'&gt;,)
+namespace = {'__module__': 'apexsigma_core.utils.config', '__qualname__': 'Settings', '__firstlineno__': 5, '__annotations__': {'d...ig': {'extra': 'ignore'}, 'Config': &lt;class 'apexsigma_core.utils.config.Settings.Config'&gt;, '__static_attributes__': ()}
+kwargs = {}
+
+    @classmethod
+    def for_model(cls, bases: tuple[type[Any], ...], namespace: dict[str, Any], kwargs: dict[str, Any]) -&gt; Self:
+        """Build a new `ConfigWrapper` instance for a `BaseModel`.
+    
+        The config wrapper built based on (in descending order of priority):
+        - options from `kwargs`
+        - options from the `namespace`
+        - options from the base classes (`bases`)
+    
+        Args:
+            bases: A tuple of base classes.
+            namespace: The namespace of the class being created.
+            kwargs: The kwargs passed to the class being created.
+    
+        Returns:
+            A `ConfigWrapper` instance for `BaseModel`.
+        """
+        config_new = ConfigDict()
+        for base in bases:
+            config = getattr(base, 'model_config', None)
+            if config:
+                config_new.update(config.copy())
+    
+        config_class_from_namespace = namespace.get('Config')
+        config_dict_from_namespace = namespace.get('model_config')
+    
+        raw_annotations = namespace.get('__annotations__', {})
+        if raw_annotations.get('model_config') and config_dict_from_namespace is None:
+            raise PydanticUserError(
+                '`model_config` cannot be used as a model field name. Use `model_config` for model configuration.',
+                code='model-config-invalid-field-name',
+            )
+    
+        if config_class_from_namespace and config_dict_from_namespace:
+&gt;           raise PydanticUserError('"Config" and "model_config" cannot be used together', code='config-both')
+E           pydantic.errors.PydanticUserError: "Config" and "model_config" cannot be used together
+E           
+E           For further information visit https://errors.pydantic.dev/2.11/u/config-both
+
+/tmp/poetry_cache/virtualenvs/memos-as-MATOk_fk-py3.13/lib/python3.13/site-packages/pydantic/_internal/_config.py:134: PydanticUserError</failure></testcase><testcase classname="libs.apexsigma-core.tests.test_utils" name="test_get_logger" time="0.015" /></testsuite></testsuites>

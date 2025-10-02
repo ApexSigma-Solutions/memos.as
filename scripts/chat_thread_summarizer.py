@@ -317,9 +317,11 @@ class MemOSThreadSummarizer:
                 important_lines.append(
                     {
                         "line_number": i + 1,
-                        "content": line.strip()[:100] + "..."
-                        if len(line.strip()) > 100
-                        else line.strip(),
+                        "content": (
+                            line.strip()[:100] + "..."
+                            if len(line.strip()) > 100
+                            else line.strip()
+                        ),
                     }
                 )
 

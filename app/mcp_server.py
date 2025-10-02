@@ -473,9 +473,7 @@ async def query_memory_by_mcp_tier_tool(query: str, top_k: int = 5) -> str:
         query_request = {
             #             "query": query,
             #             "top_k": top_k,
-            "filters": {
-                "tier": mcp_tier  # Filter by MCP-specific tier
-            }
+            "filters": {"tier": mcp_tier}  # Filter by MCP-specific tier
         }
 
         async with httpx.AsyncClient() as client:
@@ -779,9 +777,7 @@ Query Time: {stats["query_timestamp"]}"""
         query_request = {
             #             "query": query,
             #             "top_k": top_k,
-            "filters": {
-                "tier": mcp_tier  # Filter by MCP-specific tier
-            }
+            "filters": {"tier": mcp_tier}  # Filter by MCP-specific tier
         }
 
         async with httpx.AsyncClient() as client:

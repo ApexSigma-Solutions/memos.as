@@ -18,14 +18,22 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VENV_IN_PROJECT=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-# Copy poetry files and README
-COPY pyproject.toml poetry.lock* README.md ./
+# Copy Poetry project files (build context is repo root)
+COPY ./services/memos.as/pyproject.toml ./pyproject.toml
+COPY ./services/memos.as/poetry.lock* ./
+COPY ./services/memos.as/README.md ./README.md
 
-# Install dependencies
-RUN poetry install --no-dev
+# Copy the shared core library and devenviro dependency
+COPY ./libs/apexsigma-core /code/libs/apexsigma-core
+COPY ./services/devenviro.as /code/devenviro.as
 
-# Copy the application's code to the working directory
-COPY ./app /code/app
+# Ensure lockfile matches pyproject.toml inside build, then install
+RUN poetry lock --no-update || true
+RUN poetry install
+
+# Copy the application's source code
+COPY ./services/memos.as/ /code/
+
 
 # Command to run the application
 CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8090"]

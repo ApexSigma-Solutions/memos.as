@@ -26,12 +26,13 @@ class DatabaseHealthManager:
         """Check PostgreSQL connection health."""
         try:
             from .postgres_client import get_postgres_client
+            from sqlalchemy import text
 
             client = get_postgres_client()
 
-            # Try a simple query
+            # Try a simple query (use sqlalchemy.text to avoid SQLAlchemy 2.0 textual SQL warnings)
             with client.get_session() as session:
-                session.execute("SELECT 1")
+                session.execute(text("SELECT 1"))
 
             self.health_status["postgres"] = {"status": "healthy", "error": None}
             logger.info("PostgreSQL connection healthy")

@@ -3874,9 +3874,9 @@ services:
       - MEMOS_BASE_URL=http://memos-api:8090
       - JWT_SECRET_KEY=apexsigma-mcp-secret-key-2025
       # Langfuse observability integration
-      - LANGFUSE_PUBLIC_KEY=pk-lf-bba97616-6c46-4d0d-b3a1-2b3cb9e03ee5
-      - LANGFUSE_SECRET_KEY=sk-lf-ad7e9785-fb81-4340-aa6a-4cc265aec073
-      - LANGFUSE_HOST=https://cloud.langfuse.com
+            - LANGFUSE_PUBLIC_KEY=pk-lf-REDACTED_FOR_COMMIT
+            - LANGFUSE_SECRET_KEY=REDACTED_FOR_COMMIT
+            - LANGFUSE_HOST=https://cloud.langfuse.com
     networks:
       apexsigma_net:
       mcp_net:

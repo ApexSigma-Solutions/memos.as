@@ -1,8 +1,6 @@
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 from pydantic import BaseModel
-
 
 
 class ToolRegistrationRequest(BaseModel):
@@ -72,10 +70,12 @@ class LLMPerformanceStats(BaseModel):
     max_response_time: float
     sample_size: int
 
+
 class StoreResponse(BaseModel):
     status: bool
     message: str
     memory_id: Optional[int] = None
+
 
 class RecallResponse(BaseModel):
     status: bool

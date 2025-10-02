@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="17" skipped="0" tests="33" time="8.055" timestamp="2025-09-25T20:46:17.202134" hostname="158c5d704f48"><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[0]" time="0.042"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 0
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[1]" time="0.052"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 1
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[2]" time="0.050"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 2
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[3]" time="0.055"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 3
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[4]" time="0.052"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 4
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[5]" time="0.044"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 5
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[6]" time="0.054"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 6
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[7]" time="0.054"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 7
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[8]" time="0.055"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 8
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_api" name="test_health_check_multiple_times[9]" time="0.057"><failure message="assert &quot;disconnected...t('SELECT 1')&quot; == 'connected'&#10;  - connected&#10;  + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')">execution_number = 9
+
+&gt;   ???
+E   assert "disconnected...t('SELECT 1')" == 'connected'
+E     - connected
+E     + disconnected: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_api.py:21: AssertionError</failure></testcase><testcase classname="app.tests.test_graph_api" name="test_graph_query_endpoint" time="0.103" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_memory_storage_endpoint" time="0.158" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_memory_retrieval_endpoint" time="0.023" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_memory_search_endpoint" time="0.049" /><testcase classname="app.tests.test_ingest_integration.TestMemOSIntegrationEndpoints" name="test_tiered_memory_storage" time="0.033" /><testcase classname="app.tests.test_ingest_integration.TestMemOSHealthForIntegration" name="test_health_check_detailed" time="0.012" /><testcase classname="app.tests.test_ingest_integration" name="test_memOS_ready_for_integration" time="0.118" /><testcase classname="app.tests.test_integration" name="test_health_check" time="0.013" /><testcase classname="app.tests.test_integration" name="test_tool_registration" time="0.013"><failure message="Failed: Tool registration failed: {&quot;detail&quot;:&quot;Error registering tool: 400: Failed to register tool. Tool name might already exist.&quot;}">&gt;   ???
+E   Failed: Tool registration failed: {"detail":"Error registering tool: 400: Failed to register tool. Tool name might already exist."}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_integration.py:46: Failed</failure></testcase><testcase classname="app.tests.test_integration" name="test_memory_store" time="0.027"><failure message="Failed: Memory store failed: {&quot;detail&quot;:&quot;Failed to store memory in PostgreSQL&quot;}">&gt;   ???
+E   Failed: Memory store failed: {"detail":"Failed to store memory in PostgreSQL"}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_integration.py:60: Failed</failure></testcase><testcase classname="app.tests.test_integration" name="test_memory_query" time="0.028"><failure message="Failed: Memory store failed: {&quot;detail&quot;:&quot;Failed to store memory in PostgreSQL&quot;}">&gt;   ???
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_integration.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+&gt;   ???
+E   Failed: Memory store failed: {"detail":"Failed to store memory in PostgreSQL"}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_integration.py:60: Failed</failure></testcase><testcase classname="app.tests.test_integration" name="test_end_to_end_flow" time="0.054" /><testcase classname="app.tests.test_neo4j_client" name="test_neo4j_connection" time="0.029" /><testcase classname="app.tests.test_neo4j_client" name="test_create_and_get_concept_node" time="0.026" /><testcase classname="app.tests.test_neo4j_client" name="test_create_relationship" time="0.042" /><testcase classname="app.tests.test_simple" name="test_simple_assert" time="0.001" /><testcase classname="app.tests.test_tiered_storage" name="test_store_memory_tier1" time="0.020"><failure message="AssertionError: assert 'key' in {'memory_id': '1e26bb88d0a440cbcc19fc1ea81c4299', 'message': 'Memory stored in Redis', 'success': True, 'tier': 1}">redis_client = &lt;app.services.redis_client.RedisClient object at 0x7cc81a596210&gt;
+
+&gt;   ???
+E   AssertionError: assert 'key' in {'memory_id': '1e26bb88d0a440cbcc19fc1ea81c4299', 'message': 'Memory stored in Redis', 'success': True, 'tier': 1}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:47: AssertionError</failure></testcase><testcase classname="app.tests.test_tiered_storage" name="test_store_memory_tier2" time="0.040"><failure message="Failed: Error response 500 while requesting URL('http://localhost:8090/memory/2/store'): {&quot;detail&quot;:&quot;Failed to store memory in PostgreSQL&quot;}">&gt;   ???
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;Response [500 Internal Server Error]&gt;
+
+    def raise_for_status(self) -&gt; Response:
+        """
+        Raise the `HTTPStatusError` if one occurred.
+        """
+        request = self._request
+        if request is None:
+            raise RuntimeError(
+                "Cannot call `raise_for_status` as the request "
+                "instance has not been set on this response."
+            )
+    
+        if self.is_success:
+            return self
+    
+        if self.has_redirect_location:
+            message = (
+                "{error_type} '{0.status_code} {0.reason_phrase}' for url '{0.url}'\n"
+                "Redirect location: '{0.headers[location]}'\n"
+                "For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/{0.status_code}"
+            )
+        else:
+            message = (
+                "{error_type} '{0.status_code} {0.reason_phrase}' for url '{0.url}'\n"
+                "For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/{0.status_code}"
+            )
+    
+        status_class = self.status_code // 100
+        error_types = {
+            1: "Informational response",
+            3: "Redirect response",
+            4: "Client error",
+            5: "Server error",
+        }
+        error_type = error_types.get(status_class, "Invalid status code")
+        message = message.format(self, error_type=error_type)
+&gt;       raise HTTPStatusError(message, request=request, response=self)
+E       httpx.HTTPStatusError: Server error '500 Internal Server Error' for url 'http://localhost:8090/memory/2/store'
+E       For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+
+/tmp/poetry_cache/virtualenvs/memos-as-MATOk_fk-py3.13/lib/python3.13/site-packages/httpx/_models.py:829: HTTPStatusError
+
+During handling of the above exception, another exception occurred:
+
+&gt;   ???
+E   Failed: Error response 500 while requesting URL('http://localhost:8090/memory/2/store'): {"detail":"Failed to store memory in PostgreSQL"}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:82: Failed</failure></testcase><testcase classname="app.tests.test_tiered_storage" name="test_store_memory_tier3" time="0.050"><failure message="Failed: Error response 500 while requesting URL('http://localhost:8090/memory/3/store'): {&quot;detail&quot;:&quot;Error storing memory in Neo4j: 500: Failed to store memory in PostgreSQL&quot;}">neo4j_client = &lt;app.services.neo4j_client.Neo4jClient object at 0x7cc7e84aac40&gt;
+
+&gt;   ???
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;Response [500 Internal Server Error]&gt;
+
+    def raise_for_status(self) -&gt; Response:
+        """
+        Raise the `HTTPStatusError` if one occurred.
+        """
+        request = self._request
+        if request is None:
+            raise RuntimeError(
+                "Cannot call `raise_for_status` as the request "
+                "instance has not been set on this response."
+            )
+    
+        if self.is_success:
+            return self
+    
+        if self.has_redirect_location:
+            message = (
+                "{error_type} '{0.status_code} {0.reason_phrase}' for url '{0.url}'\n"
+                "Redirect location: '{0.headers[location]}'\n"
+                "For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/{0.status_code}"
+            )
+        else:
+            message = (
+                "{error_type} '{0.status_code} {0.reason_phrase}' for url '{0.url}'\n"
+                "For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/{0.status_code}"
+            )
+    
+        status_class = self.status_code // 100
+        error_types = {
+            1: "Informational response",
+            3: "Redirect response",
+            4: "Client error",
+            5: "Server error",
+        }
+        error_type = error_types.get(status_class, "Invalid status code")
+        message = message.format(self, error_type=error_type)
+&gt;       raise HTTPStatusError(message, request=request, response=self)
+E       httpx.HTTPStatusError: Server error '500 Internal Server Error' for url 'http://localhost:8090/memory/3/store'
+E       For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+
+/tmp/poetry_cache/virtualenvs/memos-as-MATOk_fk-py3.13/lib/python3.13/site-packages/httpx/_models.py:829: HTTPStatusError
+
+During handling of the above exception, another exception occurred:
+
+neo4j_client = &lt;app.services.neo4j_client.Neo4jClient object at 0x7cc7e84aac40&gt;
+
+&gt;   ???
+E   Failed: Error response 500 while requesting URL('http://localhost:8090/memory/3/store'): {"detail":"Error storing memory in Neo4j: 500: Failed to store memory in PostgreSQL"}
+
+C:\Users\steyn\ApexSigmaProjects.Dev\services\memos.as\app\tests\test_tiered_storage.py:114: Failed</failure></testcase><testcase classname="libs.apexsigma-core.tests.test_models" name="test_agent_persona" time="0.007" /><testcase classname="libs.apexsigma-core.tests.test_models" name="test_task" time="0.001" /><testcase classname="libs.apexsigma-core.tests.test_utils" name="test_settings" time="0.087"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings&#10;postgres_db&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='memos', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.11/v/extra_forbidden">@patch.dict('os.environ', {
+        'DATABASE_URL': 'test_db_url',
+        'REDIS_URL': 'test_redis_url',
+        'QDRANT_URL': 'test_qdrant_url',
+        'NEO4J_URL': 'test_neo4j_url'
+    })
+    def test_settings():
+        from apexsigma_core.utils.config import Settings
+&gt;       settings = Settings()
+
+libs/apexsigma-core/tests/test_utils.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+__pydantic_self__ = Settings(), _case_sensitive = None
+_nested_model_default_partial_update = None, _env_prefix = None
+_env_file = PosixPath('.'), _env_file_encoding = None, _env_ignore_empty = None
+_env_nested_delimiter = None, _env_nested_max_split = None
+_env_parse_none_str = None, _env_parse_enums = None, _cli_prog_name = None
+_cli_parse_args = None, _cli_settings_source = None, _cli_parse_none_str = None
+_cli_hide_none_type = None, _cli_avoid_json = None, _cli_enforce_required = None
+_cli_use_class_docs_for_groups = None, _cli_exit_on_error = None
+_cli_prefix = None, _cli_flag_prefix_char = None, _cli_implicit_flags = None
+_cli_ignore_unknown_args = None, _cli_kebab_case = None, _cli_shortcuts = None
+_secrets_dir = None, values = {}
+
+    def __init__(
+        __pydantic_self__,
+        _case_sensitive: bool | None = None,
+        _nested_model_default_partial_update: bool | None = None,
+        _env_prefix: str | None = None,
+        _env_file: DotenvType | None = ENV_FILE_SENTINEL,
+        _env_file_encoding: str | None = None,
+        _env_ignore_empty: bool | None = None,
+        _env_nested_delimiter: str | None = None,
+        _env_nested_max_split: int | None = None,
+        _env_parse_none_str: str | None = None,
+        _env_parse_enums: bool | None = None,
+        _cli_prog_name: str | None = None,
+        _cli_parse_args: bool | list[str] | tuple[str, ...] | None = None,
+        _cli_settings_source: CliSettingsSource[Any] | None = None,
+        _cli_parse_none_str: str | None = None,
+        _cli_hide_none_type: bool | None = None,
+        _cli_avoid_json: bool | None = None,
+        _cli_enforce_required: bool | None = None,
+        _cli_use_class_docs_for_groups: bool | None = None,
+        _cli_exit_on_error: bool | None = None,
+        _cli_prefix: str | None = None,
+        _cli_flag_prefix_char: str | None = None,
+        _cli_implicit_flags: bool | None = None,
+        _cli_ignore_unknown_args: bool | None = None,
+        _cli_kebab_case: bool | None = None,
+        _cli_shortcuts: Mapping[str, str | list[str]] | None = None,
+        _secrets_dir: PathType | None = None,
+        **values: Any,
+    ) -&gt; None:
+&gt;       super().__init__(
+            **__pydantic_self__._settings_build_values(
+                values,
+                _case_sensitive=_case_sensitive,
+                _nested_model_default_partial_update=_nested_model_default_partial_update,
+                _env_prefix=_env_prefix,
+                _env_file=_env_file,
+                _env_file_encoding=_env_file_encoding,
+                _env_ignore_empty=_env_ignore_empty,
+                _env_nested_delimiter=_env_nested_delimiter,
+                _env_nested_max_split=_env_nested_max_split,
+                _env_parse_none_str=_env_parse_none_str,
+                _env_parse_enums=_env_parse_enums,
+                _cli_prog_name=_cli_prog_name,
+                _cli_parse_args=_cli_parse_args,
+                _cli_settings_source=_cli_settings_source,
+                _cli_parse_none_str=_cli_parse_none_str,
+                _cli_hide_none_type=_cli_hide_none_type,
+                _cli_avoid_json=_cli_avoid_json,
+                _cli_enforce_required=_cli_enforce_required,
+                _cli_use_class_docs_for_groups=_cli_use_class_docs_for_groups,
+                _cli_exit_on_error=_cli_exit_on_error,
+                _cli_prefix=_cli_prefix,
+                _cli_flag_prefix_char=_cli_flag_prefix_char,
+                _cli_implicit_flags=_cli_implicit_flags,
+                _cli_ignore_unknown_args=_cli_ignore_unknown_args,
+                _cli_kebab_case=_cli_kebab_case,
+                _cli_shortcuts=_cli_shortcuts,
+                _secrets_dir=_secrets_dir,
+            )
+        )
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E       postgres_db
+E         Extra inputs are not permitted [type=extra_forbidden, input_value='memos', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.11/v/extra_forbidden
+
+/tmp/poetry_cache/virtualenvs/memos-as-MATOk_fk-py3.13/lib/python3.13/site-packages/pydantic_settings/main.py:193: ValidationError</failure></testcase><testcase classname="libs.apexsigma-core.tests.test_utils" name="test_get_logger" time="0.012" /></testsuite></testsuites>

@@ -15,6 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.exc import IntegrityError
 
 Base = declarative_base()
 
@@ -99,7 +100,9 @@ class PostgresClient:
             # Fall back to individual environment variables
             self.host = os.environ.get("POSTGRES_HOST", "localhost")
             self.port = int(os.environ.get("POSTGRES_PORT", 5432))
-            self.database = os.environ.get("POSTGRES_DB", "memos")
+            self.database = os.environ.get(
+                "POSTGRES_DB", "apexsigma_db"
+            )  # Updated to canonical default
             self.user = os.environ.get("POSTGRES_USER", "apexsigma_user")
             self.password = os.environ.get(
                 "POSTGRES_PASSWORD", "your_secure_postgres_password_here"
@@ -110,7 +113,16 @@ class PostgresClient:
                 f"{self.host}:{self.port}/{self.database}"
             )
 
-        self.engine = create_engine(self.database_url, echo=False)
+        # Production-ready connection pooling
+        self.engine = create_engine(
+            self.database_url,
+            echo=False,
+            pool_size=10,  # Base connection pool size
+            max_overflow=20,  # Maximum overflow connections
+            pool_timeout=30,  # Seconds to wait for connection
+            pool_recycle=3600,  # Recycle connections after 1 hour
+            pool_pre_ping=True,  # Verify connections before use
+        )
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
@@ -254,12 +266,23 @@ class PostgresClient:
         """
         try:
             with self.get_session() as session:
-                tool = RegisteredTool(
-                    name=name, description=description, usage=usage, tags=tags
-                )
-                session.add(tool)
-                session.flush()
-                return tool.id
+                try:
+                    tool = RegisteredTool(
+                        name=name, description=description, usage=usage, tags=tags
+                    )
+                    session.add(tool)
+                    session.flush()
+                    return tool.id
+                except IntegrityError:
+                    session.rollback()
+                    existing_tool = (
+                        session.query(RegisteredTool)
+                        .filter(RegisteredTool.name == name)
+                        .first()
+                    )
+                    if existing_tool:
+                        return existing_tool.id
+                    raise
         except Exception as e:
             print(f"Error registering tool: {e}")
             return None
@@ -452,10 +475,29 @@ class PostgresClient:
             return None
 
 
-# Global PostgreSQL client instance
-postgres_client = PostgresClient()
+# Global PostgreSQL client instance (lazy-initialized to avoid import-time side effects)
+_postgres_client: Optional[PostgresClient] = None
 
 
 def get_postgres_client() -> PostgresClient:
-    """Get the global PostgreSQL client instance"""
-    return postgres_client
+    """Return a lazily-instantiated global PostgresClient.
+
+    This avoids creating a DB engine (and importing DB drivers) at module
+    import time, which prevents tools like Alembic from importing the
+    SQLAlchemy "Base" metadata for autogeneration.
+    """
+    global _postgres_client
+    if _postgres_client is None:
+        _postgres_client = PostgresClient()
+    return _postgres_client
+
+
+# Backwards-compatible alias: some modules/tests may import `postgres_client`.
+# Importers should prefer `get_postgres_client()` but we provide a property-like
+# attribute that resolves to the live client when accessed.
+class _LazyPostgresClientProxy:
+    def __getattr__(self, item: str):
+        return getattr(get_postgres_client(), item)
+
+
+postgres_client = _LazyPostgresClientProxy()
