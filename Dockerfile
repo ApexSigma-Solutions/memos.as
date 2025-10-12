@@ -28,8 +28,7 @@ COPY ./libs/apexsigma-core /code/libs/apexsigma-core
 COPY ./services/devenviro.as /code/devenviro.as
 
 # Ensure lockfile matches pyproject.toml inside build, then install
-RUN poetry lock --no-update || true
-RUN poetry install
+RUN poetry lock && poetry install
 
 # Copy the application's source code
 COPY ./services/memos.as/ /code/

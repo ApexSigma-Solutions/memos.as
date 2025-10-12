@@ -26,6 +26,37 @@ def neo4j_client():
     yield client
     client.close()
 
+import httpx
+import pytest
+import random
+import redis
+import os
+from app.services.redis_client import RedisClient
+from app.services.neo4j_client import Neo4jClient
+
+API_HOST = os.environ.get("API_HOST", "localhost")
+BASE_URL = f"http://{API_HOST}:8090"
+
+
+@pytest.fixture(scope="module")
+def redis_client():
+    """
+    Fixture to initialize the Redis client for the test module.
+    """
+    client = RedisClient()
+    return client
+
+
+@pytest.fixture(scope="module")
+def neo4j_client():
+    """
+    Fixture to initialize and close the Neo4j client for the test module.
+    """
+    client = Neo4jClient()
+    yield client
+    client.close()
+
+
 def test_store_memory_tier1(redis_client):
     """
     Tests the POST /memory/1/store endpoint (Redis).
@@ -56,6 +87,7 @@ def test_store_memory_tier1(redis_client):
     except httpx.HTTPStatusError as exc:
         pytest.fail(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}: {exc.response.text}")
 
+
 def test_store_memory_tier2():
     """
     Tests the POST /memory/2/store endpoint (PostgreSQL & Qdrant).
@@ -80,6 +112,7 @@ def test_store_memory_tier2():
         pytest.fail(f"Request to {exc.request.url!r} failed: {exc}")
     except httpx.HTTPStatusError as exc:
         pytest.fail(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}: {exc.response.text}")
+
 
 def test_store_memory_tier3(neo4j_client):
     """

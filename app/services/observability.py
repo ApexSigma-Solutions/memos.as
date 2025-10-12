@@ -23,14 +23,15 @@ from prometheus_client import (
     CollectorRegistry,
     generate_latest,
 )
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
-from langfuse import Langfuse
+# Optional OpenTelemetry imports - keep them lazy and guarded so unit tests
+# don't fail when tracing exporters are not installed in the test environment.
+trace = None
+TracerProvider = None
+BatchSpanProcessor = None
+JaegerExporter = None
+FastAPIInstrumentor = None
+SQLAlchemyInstrumentor = None
+RedisInstrumentor = None
 
 
 class ObservabilityService:
@@ -56,7 +57,13 @@ class ObservabilityService:
 
         # Set logger and tracer after setup
         self.logger = structlog.get_logger()
-        self.tracer = trace.get_tracer(self.service_name)
+        # Try to obtain a tracer if OpenTelemetry is available
+        try:
+            from opentelemetry import trace as _trace
+
+            self.tracer = _trace.get_tracer(self.service_name)
+        except Exception:
+            self.tracer = None
 
     def _setup_logging(self):
         """Configure structured logging for Loki integration."""
@@ -195,18 +202,43 @@ class ObservabilityService:
 
     def _setup_tracing(self):
         """Configure OpenTelemetry tracing for Jaeger."""
-        # Set up tracer provider
-        trace.set_tracer_provider(TracerProvider())
+        try:
+            # Import OpenTelemetry components lazily
+            from opentelemetry import trace as _trace
+            from opentelemetry.sdk.trace import TracerProvider as _TracerProvider
+            from opentelemetry.sdk.trace.export import (
+                BatchSpanProcessor as _BatchSpanProcessor,
+            )
+            # Try to import Jaeger exporter; if missing, skip tracer exporter setup
+            try:
+                from opentelemetry.exporter.jaeger.thrift import (
+                    JaegerExporter as _JaegerExporter,
+                )
+            except Exception:
+                _JaegerExporter = None
 
-        # Configure Jaeger exporter
-        jaeger_exporter = JaegerExporter(
-            agent_host_name=os.environ.get("JAEGER_AGENT_HOST", "localhost"),
-            agent_port=int(os.environ.get("JAEGER_AGENT_PORT", 14268)),
-        )
+            # Set up tracer provider
+            _trace.set_tracer_provider(_TracerProvider())
 
-        # Add span processor
-        span_processor = BatchSpanProcessor(jaeger_exporter)
-        trace.get_tracer_provider().add_span_processor(span_processor)
+            if _JaegerExporter is not None:
+                jaeger_exporter = _JaegerExporter(
+                    agent_host_name=os.environ.get("JAEGER_AGENT_HOST", "localhost"),
+                    agent_port=int(os.environ.get("JAEGER_AGENT_PORT", 14268)),
+                )
+                span_processor = _BatchSpanProcessor(jaeger_exporter)
+                _trace.get_tracer_provider().add_span_processor(span_processor)
+            else:
+                # Exporter not installed; tracing will be available but not exported
+                self.logger = structlog.get_logger()
+                self.logger.debug("Jaeger exporter not installed; skipping exporter setup")
+        except Exception as e:
+            # OpenTelemetry not installed or failed to initialize - continue without tracing
+            try:
+                structlog.get_logger().warning(
+                    f"OpenTelemetry tracing not configured: {e}"
+                )
+            except Exception:
+                pass
 
     def _setup_langfuse(self):
         """Configure Langfuse client with working API keys."""
@@ -253,8 +285,17 @@ class ObservabilityService:
 
     def instrument_fastapi(self, app):
         """Instrument FastAPI application with observability."""
-        # OpenTelemetry FastAPI instrumentation
-        FastAPIInstrumentor.instrument_app(app)
+        # OpenTelemetry FastAPI instrumentation (optional)
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as _FastAPIInstrumentor
+
+            _FastAPIInstrumentor.instrument_app(app)
+        except Exception:
+            # Instrumentation not installed or failed - continue silently
+            try:
+                self.logger.debug("FastAPI instrumentation not available")
+            except Exception:
+                pass
 
         # Add metrics middleware
         @app.middleware("http")
@@ -299,11 +340,21 @@ class ObservabilityService:
 
     def instrument_database_clients(self):
         """Instrument database clients for automatic tracing."""
-        # SQLAlchemy instrumentation
-        SQLAlchemyInstrumentor().instrument()
+        try:
+            from opentelemetry.instrumentation.sqlalchemy import (
+                SQLAlchemyInstrumentor as _SQLAlchemyInstrumentor,
+            )
+            from opentelemetry.instrumentation.redis import (
+                RedisInstrumentor as _RedisInstrumentor,
+            )
 
-        # Redis instrumentation
-        RedisInstrumentor().instrument()
+            _SQLAlchemyInstrumentor().instrument()
+            _RedisInstrumentor().instrument()
+        except Exception:
+            try:
+                self.logger.debug("OTel instrumentation for DB/Redis not available")
+            except Exception:
+                pass
 
     @contextmanager
     def trace_operation(self, operation_name: str, **attributes):

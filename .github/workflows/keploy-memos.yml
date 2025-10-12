@@ -1,0 +1,15 @@
+# keploy-memos.yml
+version: api/v1beta1
+kind: config
+metadata:
+  name: keploy-memos-config
+spec:
+  path: "./memos-tests"
+  command: "python -m uvicorn services.memos.as.app.main:app --host 0.0.0.0 --port 8090"
+  network:
+    filterNoise: true
+    delay: 10
+  test:
+    path: "./memos-tests/tests"
+    command: "python -m pytest memos-tests/ -v"
+    delay: 5

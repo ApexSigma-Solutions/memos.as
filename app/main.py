@@ -49,10 +49,19 @@ app.add_middleware(
 # Initialize logging
 logger = logging.getLogger(__name__)
 
-# Initialize observability
-obs = get_observability()
-obs.instrument_fastapi(app)
-obs.instrument_database_clients()
+# Initialize observability lazily on startup to avoid creating DB/network
+# connections during module import (which breaks pytest collection).
+
+
+@app.on_event("startup")
+async def startup_event():
+    obs = get_observability()
+    try:
+        obs.instrument_fastapi(app)
+        obs.instrument_database_clients()
+    except Exception:
+        # During tests or in minimal environments these may fail; ignore.
+        pass
 
 
 @app.get("/")

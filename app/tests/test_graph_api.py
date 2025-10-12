@@ -6,6 +6,7 @@ from app.services.neo4j_client import Neo4jClient
 API_HOST = os.environ.get("API_HOST", "localhost")
 BASE_URL = f"http://{API_HOST}:8090"
 
+
 @pytest.fixture(scope="module")
 def neo4j_client():
     """
@@ -14,6 +15,7 @@ def neo4j_client():
     client = Neo4jClient()
     yield client
     client.close()
+
 
 def test_graph_query_endpoint(neo4j_client):
     """

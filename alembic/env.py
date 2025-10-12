@@ -43,19 +43,17 @@ def run_migrations_offline():
 
 def run_migrations_online():
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = os.environ.get(
-        "DATABASE_URL"
-    ) or configuration.get("sqlalchemy.url")
-    # Prefer the modern psycopg (psycopg3) driver if present. Many runtime
-    # environments include 'psycopg' (psycopg3) but SQLAlchemy will default to
-    # importing psycopg2 for the plain 'postgresql://' scheme. Rewrite the
-    # scheme to 'postgresql+psycopg://' when possible so Alembic/SQLAlchemy
-    # uses psycopg3 and avoids requiring system-level build deps.
-    url = configuration.get("sqlalchemy.url") or ""
+    # First try to get from environment, then from config
+    env_url = os.environ.get("DATABASE_URL")
+    config_url = configuration.get("sqlalchemy.url") if configuration else None
+    url = env_url or config_url or "postgresql://apexsigma_user:Apexsigma123_@apexsigma_postgres:5432/memos"
+    
+    # Use psycopg2-binary which is already installed
     if isinstance(url, str) and url.startswith("postgresql://"):
-        configuration["sqlalchemy.url"] = url.replace(
-            "postgresql://", "postgresql+psycopg://", 1
-        )
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    
+    if configuration:
+        configuration["sqlalchemy.url"] = url
 
     connectable = engine_from_config(
         configuration,

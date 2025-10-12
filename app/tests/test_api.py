@@ -5,6 +5,7 @@ import os
 API_HOST = os.environ.get("API_HOST", "localhost")
 BASE_URL = f"http://{API_HOST}:8090"
 
+
 @pytest.mark.parametrize("execution_number", range(10))
 def test_health_check_multiple_times(execution_number):
     """

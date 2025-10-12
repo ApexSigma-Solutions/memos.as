@@ -58,8 +58,12 @@ class RedisClient:
         self.host = os.environ.get("REDIS_HOST", "localhost")
         self.port = int(os.environ.get("REDIS_PORT", 6379))
         self.password = os.environ.get("REDIS_PASSWORD", None)
+        
+        # Log connection parameters (without password)
+        self.logger.info(f"Redis config - Host: {self.host}, Port: {self.port}, Password: {'SET' if self.password else 'NOT SET'}")
 
         # Initialize Redis connection with error handling
+        self.client = None
         try:
             self.client = redis.Redis(
                 host=self.host,
@@ -72,8 +76,8 @@ class RedisClient:
                 retry_on_timeout=True,
             )
             # Test connection
-            self.client.ping()
-            self.logger.info(f"Connected to Redis at {self.host}:{self.port}")
+            ping_result = self.client.ping()
+            self.logger.info(f"Connected to Redis at {self.host}:{self.port} (ping: {ping_result})")
         except Exception as e:
             self.logger.error(f"Failed to connect to Redis: {e}")
             self.client = None
@@ -98,12 +102,14 @@ class RedisClient:
 
     def is_connected(self) -> bool:
         """Check if Redis connection is available."""
-        if not self.client:
+        if self.client is None:
+            self.logger.warning("Redis client is None - not initialized")
             return False
         try:
-            self.client.ping()
-            return True
-        except Exception:
+            result = self.client.ping()
+            return result
+        except Exception as e:
+            self.logger.error(f"Redis ping failed: {e}")
             return False
 
     # === Memory Query Caching ===
