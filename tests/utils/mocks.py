@@ -104,10 +104,15 @@ class MockMessageQueue:
     def consume(self, queue: str, count: int = 1) -> List[Dict[str, Any]]:
         """Mock consume operation."""
         result = []
-        for msg in self.messages:
+        to_remove = []
+        for idx, msg in enumerate(self.messages):
             if msg["queue"] == queue and len(result) < count:
                 result.append(msg["message"])
+                to_remove.append(idx)
                 self.consumed_count += 1
+        # Remove consumed messages from self.messages
+        for idx in reversed(to_remove):
+            del self.messages[idx]
         return result
     
     def clear(self):
