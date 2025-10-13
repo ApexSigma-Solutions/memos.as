@@ -21,7 +21,7 @@ ENV POETRY_NO_INTERACTION=1 \
 # Copy Poetry project files (build context is repo root)
 COPY ./services/memos.as/pyproject.toml ./pyproject.toml
 COPY ./services/memos.as/poetry.lock* ./
-COPY ./services/memos.as/README.md ./README.md
+# COPY ./services/memos.as/README.md ./README.md
 
 # Copy the shared core library and devenviro dependency
 COPY ./libs/apexsigma-core /code/libs/apexsigma-core
