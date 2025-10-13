@@ -22,6 +22,8 @@ structlog = ">=23.0.0,<24.0.0"
 opentelemetry-distro = ">=0.40b0,<1.0.0"
 opentelemetry-instrumentation-fastapi = ">=0.40b0,<1.0.0"
 prometheus-client = ">=0.17.0,<1.0.0"
+# NOTE: The following dependency uses a relative path. Ensure that the directory 'libs/apexsigma-core'
+# exists relative to the project root. If cloning or moving the project, this structure must be preserved.
 apexsigma-core = {path = "./libs/apexsigma-core", develop = true}
 PyJWT = ">=2.0.0,<3.0.0"
 python-multipart = ">=0.0.6,<1.0.0"
