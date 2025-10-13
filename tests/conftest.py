@@ -24,7 +24,14 @@ def pytest_configure(config):
 # Event loop fixture for async tests
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
-    """Create an instance of the default event loop for the test session."""
+    """
+    Provide a fresh asyncio event loop for the test session.
+    
+    Yields an event loop for use in tests and closes it when the session ends.
+    
+    Returns:
+        asyncio.AbstractEventLoop: The event loop instance supplied to tests.
+    """
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -33,7 +40,12 @@ def event_loop() -> Generator:
 # Mock database fixtures
 @pytest.fixture
 def mock_db_session():
-    """Mock database session for unit tests."""
+    """
+    Provide a Mock object that simulates a synchronous database session for tests.
+    
+    Returns:
+        Mock: A mock session with `commit`, `rollback`, `close`, and `query` attributes preconfigured as Mock objects.
+    """
     session = Mock()
     session.commit = Mock()
     session.rollback = Mock()
@@ -44,7 +56,14 @@ def mock_db_session():
 
 @pytest.fixture
 async def async_mock_db_session():
-    """Mock async database session for async unit tests."""
+    """
+    Provide an AsyncMock representing an asynchronous database session for tests.
+    
+    The returned mock exposes awaitable methods commonly used by async DB sessions: `commit`, `rollback`, `close`, and `execute`, each implemented as an `AsyncMock`.
+    
+    Returns:
+        AsyncMock: A mock async session with `commit`, `rollback`, `close`, and `execute` methods.
+    """
     session = AsyncMock()
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
@@ -56,7 +75,12 @@ async def async_mock_db_session():
 # Mock external service fixtures
 @pytest.fixture
 def mock_redis_client():
-    """Mock Redis client for testing cache operations."""
+    """
+    Create a Mock Redis-like client configured for common cache operations used in tests.
+    
+    Returns:
+        Mock: A mock object exposing `get`, `set`, `delete`, and `exists` methods configured to return `None`, `True`, `True`, and `False` respectively.
+    """
     client = Mock()
     client.get = Mock(return_value=None)
     client.set = Mock(return_value=True)
@@ -67,7 +91,12 @@ def mock_redis_client():
 
 @pytest.fixture
 def mock_rabbitmq_client():
-    """Mock RabbitMQ client for testing message queue operations."""
+    """
+    Create a mock RabbitMQ client exposing `publish`, `consume`, and `close` methods for tests.
+    
+    Returns:
+        Mock: A Mock object with `publish` (returns `True`), `consume` (returns an empty list), and `close` callables.
+    """
     client = Mock()
     client.publish = Mock(return_value=True)
     client.consume = Mock(return_value=[])
@@ -78,7 +107,19 @@ def mock_rabbitmq_client():
 # Test data factories
 @pytest.fixture
 def sample_memo_data():
-    """Sample memo data for testing."""
+    """
+    Provide a sample memo dictionary for use in tests.
+    
+    Returns:
+        dict: A memo object with fields:
+            - id (str): Unique memo identifier, e.g. "test-memo-123".
+            - title (str): Memo title.
+            - content (str): Memo body content.
+            - created_at (str): ISO 8601 timestamp for creation.
+            - updated_at (str): ISO 8601 timestamp for last update.
+            - author (str): Author identifier.
+            - tags (list[str]): List of tag strings associated with the memo.
+    """
     return {
         "id": "test-memo-123",
         "title": "Test Memo",
@@ -92,7 +133,16 @@ def sample_memo_data():
 
 @pytest.fixture
 def sample_user_data():
-    """Sample user data for testing."""
+    """
+    Provide a sample user dictionary for tests.
+    
+    Returns:
+        dict: A sample user with keys:
+            - "id" (str): unique identifier for the user.
+            - "username" (str): display username.
+            - "email" (str): contact email address.
+            - "role" (str): user role (e.g., "user").
+    """
     return {
         "id": "test-user-123",
         "username": "testuser",
@@ -104,7 +154,17 @@ def sample_user_data():
 # Configuration fixtures
 @pytest.fixture
 def test_config():
-    """Test configuration settings."""
+    """
+    Provide a dictionary of default test configuration settings.
+    
+    Returns:
+        dict: Mapping with the following keys:
+            - database_url: database connection URL for tests (e.g., in-memory SQLite).
+            - redis_url: Redis connection URL used by tests.
+            - rabbitmq_url: RabbitMQ connection URL used by tests.
+            - log_level: logging level for tests (e.g., "DEBUG").
+            - testing: boolean flag indicating test mode (`True`).
+    """
     return {
         "database_url": "sqlite:///:memory:",
         "redis_url": "redis://localhost:6379/0",
@@ -117,7 +177,11 @@ def test_config():
 # Cleanup fixture
 @pytest.fixture(autouse=True)
 def cleanup_after_test():
-    """Cleanup after each test."""
+    """
+    Run a teardown step after each test to perform post-test cleanup.
+    
+    This autouse fixture yields control to the test and, after the test finishes, executes any cleanup logic. Currently no cleanup actions are performed.
+    """
     yield
     # Add cleanup logic here if needed
     pass

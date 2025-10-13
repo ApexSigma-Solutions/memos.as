@@ -13,12 +13,21 @@ class Config:
     """Legacy configuration class - wraps Pydantic settings for backward compatibility."""
     
     def __init__(self):
+        """
+        Initialize a Config instance and populate its configuration store.
+        
+        Creates an internal dictionary for configuration values, loads defaults from the centralized settings source, and merges any overrides from the optional retention.json file if present.
+        """
         self.config = {}
         self.load_config_from_env()
         self.load_config_from_file()
 
     def load_config_from_env(self):
-        """Load configuration from Pydantic settings."""
+        """
+        Populate the instance's config dictionary with retention and namespace values from the centralized Pydantic settings.
+        
+        This sets the following keys in self.config: "MEMORY_QUERY_TTL", "EMBEDDING_TTL", "WORKING_MEMORY_TTL", "TOOL_CACHE_TTL", "LLM_RESPONSE_TTL", "MEMORY_EXPIRATION_INTERVAL_SECONDS", and "APEX_NAMESPACE", using the corresponding attributes from the module-level `_settings` object.
+        """
         self.config["MEMORY_QUERY_TTL"] = _settings.memory_query_ttl
         self.config["EMBEDDING_TTL"] = _settings.embedding_ttl
         self.config["WORKING_MEMORY_TTL"] = _settings.working_memory_ttl
@@ -28,6 +37,12 @@ class Config:
         self.config["APEX_NAMESPACE"] = _settings.apex_namespace
 
     def load_config_from_file(self, filepath="memos.as/config/retention.json"):
+        """
+        Load configuration from a JSON file and merge its keys into the instance's config.
+        
+        Parameters:
+            filepath (str): Path to a JSON file containing configuration keys. If the file exists, its parsed entries are merged into self.config, overwriting any existing keys with the same names. The default path is "memos.as/config/retention.json".
+        """
         if os.path.exists(filepath):
             with open(filepath, "r") as f:
                 file_config = json.load(f)

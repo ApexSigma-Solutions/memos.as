@@ -54,6 +54,11 @@ class RedisClient:
     """
 
     def __init__(self):
+        """
+        Initialize the RedisClient: configure logger and connection parameters from environment, create a Redis client, and verify connectivity.
+        
+        Reads REDIS_HOST, REDIS_PORT, and REDIS_PASSWORD from the environment (with defaults), sets instance attributes (logger, host, port, password, client), attempts to connect and ping the Redis server, and logs success or failure. On connection failure, `client` is set to None.
+        """
         self.logger = get_config().get_logger(__name__)
         self.host = os.environ.get("REDIS_HOST", "localhost")
         self.port = int(os.environ.get("REDIS_PORT", 6379))
@@ -101,7 +106,14 @@ class RedisClient:
         return self._get_namespaced_key(hashlib.md5(key_data.encode()).hexdigest())
 
     def is_connected(self) -> bool:
-        """Check if Redis connection is available."""
+        """
+        Determine whether the Redis client is initialized and reachable.
+        
+        Performs a ping against the configured Redis client to verify connectivity.
+        
+        Returns:
+            bool: `true` if the Redis client is initialized and responds to a ping, `false` otherwise.
+        """
         if self.client is None:
             self.logger.warning("Redis client is None - not initialized")
             return False
