@@ -27,9 +27,14 @@ COPY ./services/memos.as/README.md ./README.md
 COPY ./libs/apexsigma-core /code/libs/apexsigma-core
 COPY ./services/devenviro.as /code/devenviro.as
 
-# Ensure lockfile matches pyproject.toml inside build, then install
-RUN poetry lock --no-update || true
-RUN poetry install
+# Copy dependency files first for better caching
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies without dev packages for production
+RUN poetry install --no-root --only=main
+
+# Copy the application's source code
+COPY ./services/memos.as/ /code/
 
 # Copy the application's source code
 COPY ./services/memos.as/ /code/

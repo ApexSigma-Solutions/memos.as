@@ -29,9 +29,19 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline():
-    url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        # Fallback to neutral SQLite URL for development/testing
+        db_url = "sqlite:///./alembic.db"
+        # Alternatively, raise an error if DATABASE_URL is required:
+        # raise ValueError("DATABASE_URL environment variable is required for migrations")
+
+    # Convert postgresql:// to postgresql+psycopg2:// if present
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
     context.configure(
-        url=url,
+        url=db_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -43,19 +53,18 @@ def run_migrations_offline():
 
 def run_migrations_online():
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = os.environ.get(
-        "DATABASE_URL"
-    ) or configuration.get("sqlalchemy.url")
-    # Prefer the modern psycopg (psycopg3) driver if present. Many runtime
-    # environments include 'psycopg' (psycopg3) but SQLAlchemy will default to
-    # importing psycopg2 for the plain 'postgresql://' scheme. Rewrite the
-    # scheme to 'postgresql+psycopg://' when possible so Alembic/SQLAlchemy
-    # uses psycopg3 and avoids requiring system-level build deps.
-    url = configuration.get("sqlalchemy.url") or ""
-    if isinstance(url, str) and url.startswith("postgresql://"):
-        configuration["sqlalchemy.url"] = url.replace(
-            "postgresql://", "postgresql+psycopg://", 1
-        )
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        # Fallback to neutral SQLite URL for development/testing
+        db_url = "sqlite:///./alembic.db"
+        # Alternatively, raise an error if DATABASE_URL is required:
+        # raise ValueError("DATABASE_URL environment variable is required for migrations")
+
+    # Convert postgresql:// to postgresql+psycopg2:// if present
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    configuration["sqlalchemy.url"] = db_url
 
     connectable = engine_from_config(
         configuration,

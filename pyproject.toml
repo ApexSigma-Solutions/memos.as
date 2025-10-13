@@ -14,10 +14,6 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.13,<4.0"
-ruff = ">=0.5.3,<1.0.0"
-mypy = ">=1.0.0,<2.0.0"
-pytest = ">=7.0.0,<8.0.0"
-pre-commit = ">=3.0.0,<4.0.0"
 mcp = ">=1.0.0,<2.0.0"
 httpx = ">=0.25.0,<1.0.0"
 fastapi = ">=0.100.0,<1.0.0"
@@ -45,11 +41,19 @@ langfuse = ">=2.0.0,<3.0.0"
 qdrant-client = ">=1.0.0,<2.0.0"
 
 
+[tool.poetry.group.dev.dependencies]
+ruff = ">=0.5.3,<1.0.0"
+mypy = ">=1.0.0,<2.0.0"
+pytest = ">=7.0.0,<8.0.0"
+pre-commit = ">=3.0.0,<4.0.0"
+
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 # Ensure pytest emits JUnit xUnit2 XML for Trunk Flaky Tests
 [tool.pytest.ini_options]
+addopts = "--cov=app --cov-report=term-missing --cov-report=xml"
 junit_family = "xunit2"
 junit_xml = "reports/junit.xml"

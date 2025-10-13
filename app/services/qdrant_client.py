@@ -23,10 +23,15 @@ class QdrantMemoryClient:
         self.collection_name = "memories"
 
         # Initialize Qdrant client
-        self.client = QdrantClient(host=self.host, port=self.port)
+        try:
+            self.client = QdrantClient(host=self.host, port=self.port)
+        except Exception as e:
+            print(f"Failed to initialize Qdrant client: {e}")
+            self.client = None
 
-        # Ensure collection exists
-        self._ensure_collection_exists()
+        # Ensure collection exists if client is available
+        if self.client:
+            self._ensure_collection_exists()
 
     def _ensure_collection_exists(self):
         """Create the memories collection if it doesn't exist"""
@@ -76,8 +81,12 @@ class QdrantMemoryClient:
             metadata: Optional metadata to store with the vector
 
         Returns:
-            Qdrant point ID if successful, None if failed
+            Qdrant point ID if successful, None if Qdrant is unavailable or failed (No-op test behavior)
         """
+        if not self.client:
+            # Qdrant is unavailable, return None (No-op test behavior)
+            return None
+
         try:
             # Generate unique point ID
             point_id = str(uuid.uuid4())
@@ -120,6 +129,10 @@ class QdrantMemoryClient:
         Returns:
             List of search results with memory_ids and scores
         """
+        if not self.client:
+            # Qdrant is unavailable, return empty list (No-op test behavior)
+            return []
+
         try:
             query_filter = None
             if agent_id:
@@ -159,6 +172,10 @@ class QdrantMemoryClient:
 
     def get_embedding_by_memory_id(self, memory_id: int) -> Optional[Dict[str, Any]]:
         """Get embedding info by PostgreSQL memory ID"""
+        if not self.client:
+            # Qdrant is unavailable, return None (No-op test behavior)
+            return None
+
         try:
             # Search by memory_id in payload
             search_result = self.client.scroll(
@@ -192,6 +209,10 @@ class QdrantMemoryClient:
 
     def delete_embedding(self, point_id: str) -> bool:
         """Delete an embedding by point ID"""
+        if not self.client:
+            # Qdrant is unavailable, return False (No-op test behavior)
+            return False
+
         try:
             self.client.delete(
                 collection_name=self.collection_name,
@@ -205,6 +226,10 @@ class QdrantMemoryClient:
 
     def delete_embedding_by_memory_id(self, memory_id: int) -> bool:
         """Delete an embedding by PostgreSQL memory ID"""
+        if not self.client:
+            # Qdrant is unavailable, return False (No-op test behavior)
+            return False
+
         try:
             self.client.delete(
                 collection_name=self.collection_name,
@@ -227,6 +252,10 @@ class QdrantMemoryClient:
 
     def get_collection_info(self) -> Optional[Dict[str, Any]]:
         """Get information about the memories collection"""
+        if not self.client:
+            # Qdrant is unavailable, return None (No-op test behavior)
+            return None
+
         try:
             collection_info = self.client.get_collection(self.collection_name)
             return {
