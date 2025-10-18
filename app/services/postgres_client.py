@@ -94,6 +94,11 @@ class PostgresClient:
 
     def __init__(self):
         # Check for DATABASE_URL first (Docker override)
+        """
+        Initialize the PostgresClient by resolving the database URL, creating a SQLAlchemy engine and session factory, and ensuring the schema exists.
+        
+        Resolves the connection URL from the DATABASE_URL environment variable or from POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD. Creates a pooled SQLAlchemy engine with production-oriented defaults and a SessionLocal factory. Attempts to create all tables from the ORM metadata; if that fails (for example when Postgres is unavailable), reconfigures to use the MEMOS_SQLITE_URL environment variable or an in-memory SQLite database ("sqlite:///:memory:") as a fallback and recreates the schema.
+        """
         self.database_url = os.environ.get("DATABASE_URL")
 
         if not self.database_url:
@@ -142,7 +147,12 @@ class PostgresClient:
 
     @contextmanager
     def get_session(self) -> Session:
-        """Context manager for database sessions with automatic cleanup"""
+        """
+        Provide a database session context that commits on successful exit, rolls back on exception, and always closes the session.
+        
+        Yields:
+            session (Session): The active SQLAlchemy Session; it will be committed on normal exit, rolled back if an exception occurs, and closed in all cases.
+        """
         session = self.SessionLocal()
         try:
             yield session

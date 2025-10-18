@@ -11,7 +11,12 @@ from unittest.mock import Mock, patch
 
 @pytest.fixture
 def mock_logger():
-    """Mock logger for unit tests."""
+    """
+    Create a Mock-based logger exposing common logging methods for unit tests.
+    
+    Returns:
+        Mock: A Mock object with `info`, `debug`, `warning`, `error`, and `exception` attributes, each a Mock.
+    """
     logger = Mock()
     logger.info = Mock()
     logger.debug = Mock()
@@ -23,7 +28,14 @@ def mock_logger():
 
 @pytest.fixture
 def mock_http_client():
-    """Mock HTTP client for unit tests."""
+    """
+    Create a Mock HTTP client with common HTTP verb methods for unit tests.
+    
+    The returned object has `get`, `post`, `put`, and `delete` attributes, each set to a `Mock` so tests can assert calls and configure return values.
+    
+    Returns:
+        client (Mock): Mock object representing an HTTP client with mocked verb methods.
+    """
     client = Mock()
     client.get = Mock()
     client.post = Mock()
@@ -34,7 +46,14 @@ def mock_http_client():
 
 @pytest.fixture
 def isolated_environment(monkeypatch):
-    """Set up an isolated environment for unit tests."""
+    """
+    Configure environment variables for unit tests.
+    
+    Sets ENVIRONMENT to "test" and LOG_LEVEL to "DEBUG" on the provided pytest monkeypatch fixture.
+    
+    Returns:
+        monkeypatch: The same monkeypatch object passed in, with the environment variables applied.
+    """
     # Set test environment variables
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")

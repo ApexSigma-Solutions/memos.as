@@ -43,6 +43,11 @@ class ObservabilityService:
     """
 
     def __init__(self):
+        """
+        Initialize an ObservabilityService instance and configure logging, metrics, tracing, and Langfuse integration.
+        
+        Sets service_name and version, prepares the Langfuse client placeholder, and runs setup routines for logging, Prometheus metrics, OpenTelemetry tracing, and Langfuse. After setup it binds a structured logger to self.logger and attempts to obtain an OpenTelemetry tracer; self.tracer will be None if OpenTelemetry is not available.
+        """
         self.service_name = "memos-as"
         self.version = "1.0.0"
 
@@ -66,7 +71,11 @@ class ObservabilityService:
             self.tracer = None
 
     def _setup_logging(self):
-        """Configure structured logging for Loki integration."""
+        """
+        Configure structured JSON logging suitable for Loki ingestion.
+        
+        Sets up structlog to produce timestamped, exception-aware, Unicode-safe JSON logs and caches the configured logger for first use.
+        """
         structlog.configure(
             processors=[
                 structlog.stdlib.filter_by_level,
@@ -201,7 +210,13 @@ class ObservabilityService:
         )
 
     def _setup_tracing(self):
-        """Configure OpenTelemetry tracing for Jaeger."""
+        """
+        Configure OpenTelemetry tracing and attach a Jaeger exporter when available.
+        
+        Attempts to lazily import OpenTelemetry and set a tracer provider. If a Jaeger exporter is installed, attaches a BatchSpanProcessor configured with
+        JAEGER_AGENT_HOST and JAEGER_AGENT_PORT environment variables. If OpenTelemetry or the Jaeger exporter is not present or fails to initialize,
+        the function logs the condition and leaves tracing unexported without raising.
+        """
         try:
             # Import OpenTelemetry components lazily
             from opentelemetry import trace as _trace
@@ -241,7 +256,11 @@ class ObservabilityService:
                 pass
 
     def _setup_langfuse(self):
-        """Configure Langfuse client with working API keys."""
+        """
+        Initialize the Langfuse client when valid API keys are available and record a startup event.
+        
+        Reads LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY from the environment (uses LANGFUSE_HOST with default https://cloud.langfuse.com if set) and, if both keys are present and authentication succeeds, assigns a Langfuse client to self.langfuse and attempts to create and flush a "memos-startup" event. If keys are missing, authentication fails, or any error occurs during initialization or event creation, self.langfuse is set to None and the function logs status messages via print.
+        """
         try:
             # Use the correct environment variable names
             secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
@@ -284,7 +303,17 @@ class ObservabilityService:
             print(f"❌ Failed to initialize Langfuse: {str(e)}")
 
     def instrument_fastapi(self, app):
-        """Instrument FastAPI application with observability."""
+        """
+        Configure a FastAPI application for observability by attempting OpenTelemetry instrumentation and adding Prometheus metrics middleware.
+        
+        Attempts to instrument the app with OpenTelemetry FastAPI instrumentation if the package is available; if instrumentation is unavailable or fails, continues silently. Adds an HTTP middleware that:
+        - Increments the request counter metric with labels `method`, `endpoint`, and `status_code`.
+        - Observes request duration in the request duration histogram with labels `method` and `endpoint`.
+        - On unhandled exceptions, increments the counter with `status_code` 500 and logs the error with method, path, error, and duration.
+        
+        Parameters:
+            app: The FastAPI application instance to instrument.
+        """
         # OpenTelemetry FastAPI instrumentation (optional)
         try:
             from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as _FastAPIInstrumentor
@@ -339,7 +368,11 @@ class ObservabilityService:
                 raise
 
     def instrument_database_clients(self):
-        """Instrument database clients for automatic tracing."""
+        """
+        Attempt to enable OpenTelemetry instrumentation for SQLAlchemy and Redis clients.
+        
+        If OpenTelemetry instrumentation packages for SQLAlchemy or Redis are available, they will be instrumented; if not, the method logs a debug message and returns without raising.
+        """
         try:
             from opentelemetry.instrumentation.sqlalchemy import (
                 SQLAlchemyInstrumentor as _SQLAlchemyInstrumentor,
@@ -358,7 +391,21 @@ class ObservabilityService:
 
     @contextmanager
     def trace_operation(self, operation_name: str, **attributes):
-        """Context manager for tracing operations."""
+        """
+        Create a tracing span context for an operation and record success, error, and duration metadata.
+        
+        The created span will have any provided attributes attached. On normal exit the span receives
+        the attribute `operation.success = True`; if an exception is raised the span receives
+        `operation.success = False` and `operation.error` with the exception string. The span always
+        receives `operation.duration` with the operation elapsed time in seconds. Exceptions are re-raised.
+        
+        Parameters:
+            operation_name (str): Name of the operation/span.
+            **attributes: Any additional span attributes to set on enter (key-value pairs).
+        
+        Returns:
+            span: The active tracing span for the operation.
+        """
         with self.tracer.start_as_current_span(operation_name) as span:
             for key, value in attributes.items():
                 span.set_attribute(key, value)

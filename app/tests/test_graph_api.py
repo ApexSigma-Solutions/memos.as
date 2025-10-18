@@ -10,7 +10,12 @@ BASE_URL = f"http://{API_HOST}:8090"
 @pytest.fixture(scope="module")
 def neo4j_client():
     """
-    Fixture to initialize and close the Neo4j client for the test module.
+    Provide a module-scoped Neo4jClient fixture for tests.
+    
+    Yields an initialized Neo4jClient to test functions and ensures the client is closed after the module's tests complete.
+    
+    Returns:
+        Neo4jClient: An initialized client instance for interacting with Neo4j in tests.
     """
     client = Neo4jClient()
     yield client

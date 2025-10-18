@@ -42,6 +42,11 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
+    """
+    Run Alembic migrations in online mode against the configured database.
+    
+    Determines the database URL by preferring the DATABASE_URL environment variable, then the Alembic configuration's "sqlalchemy.url", and finally a built-in fallback. If the URL uses the "postgresql://" scheme it is rewritten to use the psycopg2 driver ("postgresql+psycopg2://"). When an Alembic configuration section exists, the resolved URL is written back to it. Creates a SQLAlchemy engine, opens a connection, and executes migrations inside a transaction.
+    """
     configuration = config.get_section(config.config_ini_section)
     # First try to get from environment, then from config
     env_url = os.environ.get("DATABASE_URL")
