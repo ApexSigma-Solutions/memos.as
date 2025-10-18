@@ -20,10 +20,10 @@ def redis_client():
 @pytest.fixture(scope="module")
 def neo4j_client():
     """
-    Provide a Neo4jClient instance for the test module and ensure it is closed after tests complete.
+    Provide a pytest fixture that yields an initialized Neo4jClient for tests and ensures the client is closed during teardown.
     
     Yields:
-        Neo4jClient: an initialized Neo4j client for use in tests.
+        Neo4jClient: an initialized client for use in the test module; the client is closed after the fixture finishes.
     """
     client = Neo4jClient()
     yield client
@@ -44,10 +44,10 @@ BASE_URL = f"http://{API_HOST}:8090"
 @pytest.fixture(scope="module")
 def redis_client():
     """
-    Provide a RedisClient instance for use in the test module.
+    Initialize and return a RedisClient configured for tests and shared across the test module.
     
     Returns:
-        RedisClient: An initialized RedisClient for use by tests.
+        RedisClient: A RedisClient instance to be used by tests within the module.
     """
     client = RedisClient()
     return client
@@ -56,10 +56,10 @@ def redis_client():
 @pytest.fixture(scope="module")
 def neo4j_client():
     """
-    Provide a Neo4jClient instance for the test module and ensure it is closed after tests complete.
+    Provide a pytest fixture that yields an initialized Neo4jClient for tests and ensures the client is closed during teardown.
     
     Yields:
-        Neo4jClient: an initialized Neo4j client for use in tests.
+        Neo4jClient: an initialized client for use in the test module; the client is closed after the fixture finishes.
     """
     client = Neo4jClient()
     yield client
@@ -68,9 +68,9 @@ def neo4j_client():
 
 def test_store_memory_tier1(redis_client):
     """
-    Validate that POST /memory/1/store stores a memory in Redis and returns expected response fields.
+    Verify that POST /memory/1/store stores a memory in Redis and returns the expected response.
     
-    Sends a POST request to the Tier 1 memory store endpoint with sample content and metadata, asserts the response indicates success, contains tier==1 and a storage `key`, and verifies the stored Redis entry matches the submitted content. On HTTP request or response errors the test fails with a descriptive pytest failure.
+    Sends a POST with content and metadata to the tier 1 memory store, asserts the response indicates success, includes tier 1 and a storage key, and verifies the stored Redis entry contains the same content.
     """
     url = f"{BASE_URL}/memory/1/store"
     content = "Test memory for Tier 1"
@@ -101,7 +101,9 @@ def test_store_memory_tier1(redis_client):
 
 def test_store_memory_tier2():
     """
-    Tests the POST /memory/2/store endpoint (PostgreSQL & Qdrant).
+    Verify that POST /memory/2/store accepts a tier-2 memory payload and returns identifiers for the stored memory.
+    
+    Sends a JSON payload containing `content` and `metadata` (with source "test") to the /memory/2/store endpoint and asserts the response indicates success and includes both `memory_id` and `point_id`. The test fails if the request encounters a network error or returns a non-success HTTP status.
     """
     url = f"{BASE_URL}/memory/2/store"
     content = "Test memory for Tier 2"
@@ -127,9 +129,7 @@ def test_store_memory_tier2():
 
 def test_store_memory_tier3(neo4j_client):
     """
-    Validate that POST /memory/3/store creates a Neo4j memory node and returns the stored node.
-    
-    Sends a POST request with content and metadata (including a randomized memory_id), asserts the response indicates success, has tier 3, and contains a node whose content matches the submitted content. After assertions, removes the created node from Neo4j to clean up.
+    Tests the POST /memory/3/store endpoint (Neo4j).
     """
     url = f"{BASE_URL}/memory/3/store"
     content = "Test memory for Tier 3"

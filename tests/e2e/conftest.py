@@ -14,10 +14,10 @@ import asyncio
 @pytest.fixture(scope="module")
 def e2e_base_url():
     """
-    Provide the base URL used by end-to-end API tests.
+    Base URL used by end-to-end API tests.
     
     Returns:
-        base_url (str): The base API URL as a string. Currently a hard-coded placeholder "http://localhost:8000" and should be configured for the target environment.
+        str: The base HTTP URL for e2e tests (e.g. "http://localhost:8000").
     """
     # TODO: Configure based on your deployment
     return "http://localhost:8000"
@@ -26,13 +26,13 @@ def e2e_base_url():
 @pytest.fixture(scope="module")
 async def e2e_http_client(e2e_base_url) -> AsyncGenerator:
     """
-    Provide an HTTP client configured with the end-to-end test base URL for use in tests.
+    Provide an httpx AsyncClient configured for end-to-end API tests.
     
     Parameters:
-        e2e_base_url (str): Base URL used to configure the client's requests.
+        e2e_base_url (str): Base URL used by the client for requests.
     
     Returns:
-        An `httpx.AsyncClient` instance configured with the provided base URL and a 30-second timeout, yielded for test use.
+        httpx.AsyncClient: An async HTTP client configured with the provided base URL and a 30-second timeout. The client is closed when the fixture completes.
     """
     async with httpx.AsyncClient(base_url=e2e_base_url, timeout=30.0) as client:
         yield client
@@ -41,9 +41,11 @@ async def e2e_http_client(e2e_base_url) -> AsyncGenerator:
 @pytest.fixture(scope="module")
 async def e2e_setup_teardown():
     """
-    Provide environment setup before end-to-end tests run and perform cleanup after they complete.
+    Provide setup and teardown scaffolding for end-to-end (e2e) tests.
     
-    Intended to start required services and perform database migrations before yielding control to tests, and to stop services and clean resources after tests finish. Current implementation contains placeholders for those steps and yields once to run tests.
+    Performs environment setup before tests run (for example: start services, run database migrations)
+    and performs cleanup after tests complete (for example: stop services, remove test resources).
+    Current implementation contains placeholders for those steps.
     """
     # Setup: Start services, migrate database, etc.
     # await start_test_services()
@@ -59,12 +61,13 @@ async def e2e_setup_teardown():
 @pytest.fixture
 async def e2e_test_user(e2e_http_client):
     """
-    Provide a test user for end-to-end tests.
+    Create a temporary test user for end-to-end tests.
     
-    Yields a dictionary with the created user's data for use in tests and performs teardown cleanup after the test completes. Currently the creation and cleanup are not implemented and the fixture yields `None`.
+    Yields:
+        dict or None: The created user's data (including `id`, `username`, and `email`) for use by tests, or `None` if user creation is not performed.
     
-    Returns:
-        user (dict or None): The created user's data (e.g., `{"id": ..., "username": ..., "email": ...}`) or `None` if user creation is not implemented.
+    Notes:
+        After the test using this fixture completes, the fixture will remove the created user to clean up test state.
     """
     # TODO: Implement user creation via API
     user_data = {
@@ -86,12 +89,14 @@ async def e2e_test_user(e2e_http_client):
 @pytest.fixture
 async def e2e_auth_token(e2e_http_client, e2e_test_user):
     """
-    Return an authentication token used by end-to-end tests.
+    Obtain an authentication token to be used by end-to-end tests.
     
-    This fixture yields the access token for the test user; currently returns a placeholder string until authentication is implemented.
+    Parameters:
+    	e2e_http_client: Async HTTP client configured with the e2e base URL.
+    	e2e_test_user (dict): Test user's credentials/data used to perform authentication.
     
     Returns:
-        access_token (str): Access token string to authenticate API requests.
+    	auth_token (str): Authentication token for the test user. Currently returns the placeholder string "test_token" until real authentication is implemented.
     """
     # TODO: Implement authentication
     # response = await e2e_http_client.post("/api/auth/login", json={

@@ -14,27 +14,25 @@ class MockDatabase:
     
     def __init__(self):
         """
-        Initialize the mock database with empty storage and reset the operation counter.
+        Initialize the mock database instance with empty storage and reset counters.
         
-        Creates:
-            data (Dict[str, Any]): In-memory mapping of item IDs to their stored data.
-            call_count (int): Total number of operations performed, initialized to 0.
+        Attributes:
+            data (Dict[str, Any]): In-memory mapping of item IDs to stored records.
+            call_count (int): Number of database operations invoked, initialized to 0.
         """
         self.data: Dict[str, Any] = {}
         self.call_count = 0
     
     def insert(self, table: str, data: Dict[str, Any]) -> str:
         """
-        Insert the provided record into the mock database and record the operation.
-        
-        Stores the given data under a generated item id and increments the internal call_count.
+        Create and store a new item in the mock database and return its generated identifier.
         
         Parameters:
-            table (str): Name of the table/namespace for the record.
-            data (Dict[str, Any]): Field values to store for the new record.
+            table (str): Name of the table/namespace used to construct the item id.
+            data (Dict[str, Any]): Item fields to store.
         
         Returns:
-            item_id (str): The generated id for the new record (format: '{table}_{index}').
+            item_id (str): Generated identifier in the form "<table>_<n>", where n is the number of items present before insertion.
         """
         self.call_count += 1
         item_id = f"{table}_{len(self.data)}"
@@ -43,23 +41,25 @@ class MockDatabase:
     
     def get(self, item_id: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieve the stored item for the given item ID. Increments the mock's call_count.
+        Retrieve an item from the mock database by its identifier.
+        
+        Also increments the mock's internal operation counter.
         
         Returns:
-            The stored item as a dict if present, otherwise `None`.
+            Dict[str, Any]: The stored item for `item_id` if present, `None` otherwise.
         """
         self.call_count += 1
         return self.data.get(item_id)
     
     def update(self, item_id: str, data: Dict[str, Any]) -> bool:
         """
-        Update an existing stored item by merging the provided fields into its data.
+        Update fields of an existing stored item.
         
-        Increments the instance's call_count.
+        This mutates the stored item by merging the provided mapping into its data and increments the instance's operation counter.
         
         Parameters:
             item_id (str): Identifier of the item to update.
-            data (Dict[str, Any]): Fields to merge into the existing item; existing keys will be overwritten.
+            data (Dict[str, Any]): Mapping of fields and values to merge into the stored item.
         
         Returns:
             bool: `True` if the item existed and was updated, `False` otherwise.
@@ -72,10 +72,13 @@ class MockDatabase:
     
     def delete(self, item_id: str) -> bool:
         """
-        Remove an item from the mock database by its identifier.
+        Remove the item with the given item_id from the mock database.
+        
+        Parameters:
+            item_id (str): Identifier of the item to remove.
         
         Returns:
-            True if the item existed and was removed, False otherwise.
+            bool: True if the item existed and was removed, False otherwise.
         """
         self.call_count += 1
         if item_id in self.data:
@@ -85,9 +88,9 @@ class MockDatabase:
     
     def clear(self):
         """
-        Clear all stored items and reset the operation counter.
+        Clear all stored items and reset the call counter.
         
-        Empties the in-memory data store and sets `call_count` to 0.
+        Empties the internal in-memory data store and sets `call_count` to 0.
         """
         self.data.clear()
         self.call_count = 0
@@ -98,37 +101,35 @@ class MockRedis:
     
     def __init__(self):
         """
-        Initialize an in-memory key-value cache and TTL store for the mock Redis client.
+        Initialize the mock Redis client with empty in-memory storage.
         
-        Creates two empty dictionaries used to record state during tests.
-        
-        Attributes:
-            cache (Dict[str, str]): Mapping of keys to string values.
-            ttl (Dict[str, int]): Mapping of keys to their TTL (time-to-live) in seconds.
+        Creates:
+        - `cache`: a mapping from keys to string values.
+        - `ttl`: a mapping from keys to their time-to-live (in seconds).
         """
         self.cache: Dict[str, str] = {}
         self.ttl: Dict[str, int] = {}
     
     def get(self, key: str) -> Optional[str]:
         """
-        Retrieve the value associated with `key` from the mock cache.
+        Retrieve the string value stored for a cache key.
         
         Returns:
-            value (Optional[str]): The string value stored for `key`, or `None` if the key is not present.
+            `str` value stored under `key`, or `None` if the key is not present.
         """
         return self.cache.get(key)
     
     def set(self, key: str, value: str, ex: Optional[int] = None) -> bool:
         """
-        Store a string value under a key with an optional time-to-live (TTL).
+        Set a string value for a key in the mock cache and optionally record a time-to-live.
         
         Parameters:
-            key (str): The cache key.
-            value (str): The string value to store.
-            ex (Optional[int]): Expiration time for the key in seconds; if provided, the TTL is recorded.
+            key (str): Cache key.
+            value (str): Value to store.
+            ex (Optional[int]): Time-to-live in seconds; if provided, the TTL is recorded for the key.
         
         Returns:
-            bool: `True` if the value was stored, `False` otherwise.
+            bool: `True` if the value was stored.
         """
         self.cache[key] = value
         if ex:
@@ -137,12 +138,15 @@ class MockRedis:
     
     def delete(self, key: str) -> int:
         """
-        Remove a key from the mock Redis cache and its associated TTL if present.
+        Remove a key from the mock Redis cache.
         
-        If the key exists, it is removed from the cache and any stored TTL is cleared.
+        If present, also removes any associated TTL entry.
+        
+        Parameters:
+            key (str): The cache key to remove.
         
         Returns:
-            int: `1` if the key was present and removed, `0` otherwise.
+            int: `1` if the key was deleted, `0` if the key was not found.
         """
         if key in self.cache:
             del self.cache[key]
@@ -153,7 +157,7 @@ class MockRedis:
     
     def exists(self, key: str) -> int:
         """
-        Check whether a key exists in the mock Redis cache.
+        Check whether a key exists in the mock cache.
         
         Returns:
             int: `1` if the key exists, `0` otherwise.
@@ -162,9 +166,9 @@ class MockRedis:
     
     def clear(self):
         """
-        Clear all stored keys and their expiration entries from the mock Redis client.
+        Clear all stored keys and their associated TTL entries.
         
-        Removes every entry from the internal cache and the TTL mapping, restoring an empty state.
+        Removes all entries from the in-memory cache and the TTL mapping used to track expirations.
         """
         self.cache.clear()
         self.ttl.clear()
@@ -175,12 +179,9 @@ class MockMessageQueue:
     
     def __init__(self):
         """
-        Create a new MockMessageQueue and initialize its internal state.
+        Initialize the in-memory message queue's state.
         
-        Attributes:
-            messages (List[Dict[str, Any]]): Stored messages; each entry contains at least 'queue' and 'message' keys.
-            published_count (int): Total number of messages published to the queue.
-            consumed_count (int): Total number of messages consumed from the queue.
+        Creates an empty `messages` list for enqueued message records (each containing `queue` and `payload`), and sets `published_count` and `consumed_count` counters to 0.
         """
         self.messages: List[Dict[str, Any]] = []
         self.published_count = 0
@@ -188,16 +189,14 @@ class MockMessageQueue:
     
     def publish(self, queue: str, message: Dict[str, Any]) -> bool:
         """
-        Publish a message to the mock queue.
-        
-        Records the provided message under the given queue and increments the published message counter.
+        Enqueues a message into the mock message queue.
         
         Parameters:
             queue (str): Name of the target queue.
-            message (Dict[str, Any]): Payload to publish to the queue.
+            message (Dict[str, Any]): Message payload to record.
         
         Returns:
-            bool: `True` if the message was recorded, `False` otherwise.
+            bool: `True` if the message was recorded.
         """
         self.messages.append({"queue": queue, "message": message})
         self.published_count += 1
@@ -205,16 +204,16 @@ class MockMessageQueue:
     
     def consume(self, queue: str, count: int = 1) -> List[Dict[str, Any]]:
         """
-        Retrieve up to `count` messages for the specified queue.
+        Consume up to `count` messages from the specified queue.
         
-        This returns a list of message payloads from the in-memory store for `queue`, up to `count` items. For each message returned `self.consumed_count` is incremented. Returned messages remain in the internal message list (they are not removed).
+        Consumed messages are removed from the internal message store and increment the instance's `consumed_count`.
         
         Parameters:
-            queue (str): Name of the queue to consume from.
-            count (int): Maximum number of messages to retrieve.
+        	queue (str): Name of the queue to consume messages from.
+        	count (int): Maximum number of messages to consume.
         
         Returns:
-            List[Dict[str, Any]]: Message payloads retrieved from the queue, in the order they were stored, up to `count` items.
+        	List[Dict[str, Any]]: A list of message payloads that were consumed (in arrival order).
         """
         result = []
         to_remove = []
@@ -230,9 +229,10 @@ class MockMessageQueue:
     
     def clear(self):
         """
-        Clear all stored messages and reset publish/consume counters.
+        Remove all queued messages and reset the published and consumed counters.
         
-        Removes all messages from the queue and sets `published_count` and `consumed_count` to 0.
+        This empties the internal message store and sets both `published_count` and
+        `consumed_count` to 0.
         """
         self.messages.clear()
         self.published_count = 0
@@ -244,27 +244,23 @@ class MockHTTPClient:
     
     def __init__(self):
         """
-        Initialize the mock HTTP client by setting up storage for recorded requests and configured responses.
+        Initialize the mock HTTP client, preparing storage for recorded requests and configurable responses.
         
-        Attributes:
-            requests: List of recorded request metadata dictionaries (each contains at least `method`, `url`, and `kwargs`).
-            responses: Mapping from URL to a response configuration dictionary (commonly contains `status_code` and `json` payload) used to construct mock responses.
+        self.requests will hold recorded request descriptors (dicts with keys like method, url, and kwargs).
+        self.responses will map URLs to configured mock response data.
         """
         self.requests: List[Dict[str, Any]] = []
         self.responses: Dict[str, Any] = {}
     
     async def get(self, url: str, **kwargs) -> Mock:
         """
-        Builds and returns a configured mock response for an HTTP GET and records the request.
-        
-        Records the request as {"method": "GET", "url": url, **kwargs} appended to self.requests. The returned Mock has a numeric `status_code` taken from this client's configured responses for the URL (defaults to 200) and a `json()` callable that returns the configured JSON payload for the URL (defaults to an empty dict).
+        Create and return a mock GET response for the given URL and record the request.
         
         Parameters:
-            url (str): The request URL.
-            **kwargs: Additional request metadata that will be recorded with the request.
+            url (str): The request URL. Additional keyword arguments are recorded alongside the request.
         
         Returns:
-            Mock: A mock response where `status_code` is the HTTP status and `json()` returns the response payload.
+            Mock: A mock response whose `status_code` is the configured status for `url` (default 200) and whose `json()` returns the configured JSON payload for `url` (default {}).
         """
         self.requests.append({"method": "GET", "url": url, **kwargs})
         response = Mock()
@@ -274,12 +270,12 @@ class MockHTTPClient:
     
     async def post(self, url: str, **kwargs) -> Mock:
         """
-        Create a mocked POST HTTP response and record the request.
+        Create a mock HTTP POST response and record the request.
         
-        The function appends the request metadata (method, url and provided kwargs) to the client's request log and returns a Mock response object. The response's `status_code` is taken from the client's configured responses for `url` (defaults to 201) and its `json()` method returns the configured JSON payload for `url` (defaults to an empty dict).
+        Records the POST request (method and URL plus kwargs) and returns a Mock response whose `status_code` and `json()` result are taken from the client's configured responses for the URL (defaults: status_code 201 and empty dict).
         
-        @returns:
-            Mock: A Mock object representing the HTTP response with `status_code` and a callable `json()` returning the payload.
+        Returns:
+            Mock: A mock response object with `status_code` (int) and a callable `json()` that returns the configured JSON payload.
         """
         self.requests.append({"method": "POST", "url": url, **kwargs})
         response = Mock()
@@ -289,12 +285,13 @@ class MockHTTPClient:
     
     async def put(self, url: str, **kwargs) -> Mock:
         """
-        Builds and returns a Mock HTTP PUT response and records the request.
+        Create a mock HTTP PUT response and record the request in self.requests.
         
-        Records the PUT request (method, url and provided kwargs) in self.requests. The returned Mock has a `status_code` attribute taken from the configured responses for the URL (default 200) and a `json()` callable that returns the configured JSON payload for the URL (default {}).
+        The returned Mock has its `status_code` taken from configured responses for the URL (default 200)
+        and its `json()` callable returning the configured JSON payload (default {}).
         
         Returns:
-            Mock: Mock response object with `status_code` and `json()` behavior as described.
+            Mock: mock response with `status_code` and a `json()` callable.
         """
         self.requests.append({"method": "PUT", "url": url, **kwargs})
         response = Mock()
@@ -304,14 +301,12 @@ class MockHTTPClient:
     
     async def delete(self, url: str, **kwargs) -> Mock:
         """
-        Builds and returns a mocked HTTP DELETE response and records the request.
+        Create and record a mock HTTP DELETE request and return a configured response.
         
-        Parameters:
-            url (str): The request URL.
-            **kwargs: Additional request metadata recorded for inspection (e.g., headers, params).
+        The response's `status_code` and `json()` payload are taken from the client's configured responses for the URL, defaulting to 204 and an empty dict respectively.
         
         Returns:
-            Mock: A response-like Mock whose `status_code` is taken from the configured responses for `url` (default 204) and whose `json()` method returns the configured JSON payload for `url` (default {}).
+            Mock: Mock response object with `status_code` and a `json()` method.
         """
         self.requests.append({"method": "DELETE", "url": url, **kwargs})
         response = Mock()
@@ -324,9 +319,9 @@ class MockHTTPClient:
         Configure the mock HTTP response returned for a specific URL.
         
         Parameters:
-            url (str): The request URL to associate the response with.
-            status_code (int): The HTTP status code to return for requests to `url`.
-            json_data (Dict[str, Any]): The JSON-serializable payload to return as the response body.
+            url (str): The request URL to mock.
+            status_code (int): HTTP status code that the mock response should expose.
+            json_data (Dict[str, Any]): JSON-serializable payload returned by the mock response's json().
         """
         self.responses[url] = {"status_code": status_code, "json": json_data}
     

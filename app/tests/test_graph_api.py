@@ -10,12 +10,10 @@ BASE_URL = f"http://{API_HOST}:8090"
 @pytest.fixture(scope="module")
 def neo4j_client():
     """
-    Provide a module-scoped Neo4jClient fixture for tests.
-    
-    Yields an initialized Neo4jClient to test functions and ensures the client is closed after the module's tests complete.
+    Provide a module-scoped Neo4jClient instance for tests and ensure it is closed after the module completes.
     
     Returns:
-        Neo4jClient: An initialized client instance for interacting with Neo4j in tests.
+        Neo4jClient: A client instance for use by tests in this module.
     """
     client = Neo4jClient()
     yield client
@@ -24,7 +22,9 @@ def neo4j_client():
 
 def test_graph_query_endpoint(neo4j_client):
     """
-    Tests the /graph/query endpoint.
+    Verifies that the /graph/query endpoint returns a created Concept node when queried by name.
+    
+    Creates a Concept node with a unique name, posts a query to /graph/query filtering by that name, asserts the response contains exactly one result whose node name matches the created concept, and deletes the created node afterward.
     """
     # Create a test concept node
     concept_name = "Test Graph Query Concept"

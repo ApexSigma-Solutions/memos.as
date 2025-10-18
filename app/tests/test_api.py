@@ -9,8 +9,10 @@ BASE_URL = f"http://{API_HOST}:8090"
 @pytest.mark.parametrize("execution_number", range(10))
 def test_health_check_multiple_times(execution_number):
     """
-    Tests the /health endpoint to ensure the service is running and responsive.
-    Runs multiple times to check for connection persistence.
+    Check the /health endpoint reports overall healthy status and that postgres, qdrant, and redis are connected.
+    
+    Parameters:
+        execution_number (int): The current iteration index for the parametrized test run.
     """
     url = f"{BASE_URL}/health"
     try:

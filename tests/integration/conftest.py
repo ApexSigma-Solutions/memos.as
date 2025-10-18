@@ -15,10 +15,8 @@ async def integration_db_connection():
     """
     Provide a test database connection for integration tests.
     
-    Yields a database connection object configured for tests and ensures the connection is closed after the tests complete. Currently a placeholder that may yield `None` if no test connection is configured.
-    
-    Returns:
-        connection: A test database connection object, or `None` if not configured.
+    Yields:
+        connection: A database connection object for tests, or None if no test database is configured. If a connection is provided, it will be closed after use.
     """
     # TODO: Set up actual test database connection
     # This is a placeholder that should be implemented based on your DB setup
@@ -35,11 +33,11 @@ async def integration_db_connection():
 @pytest.fixture(scope="module")
 async def integration_redis_connection():
     """
-    Provide a Redis connection for integration tests.
+    Provide a test Redis connection to integration tests.
     
-    This fixture yields a Redis connection object for use by tests. If no connection is established (current placeholder implementation), it yields `None`. When a real connection is provided, it will be closed after the fixture finalizes.
+    Yields a Redis client/connection instance when configured, or `None` if no test connection is set up. If a connection is created, it will be closed when the fixture finalizes.
     Returns:
-        connection: A Redis connection object, or `None` if the connection is not established.
+        connection (Optional[object]): The test Redis connection object or `None`.
     """
     # TODO: Set up actual test Redis connection
     # This is a placeholder that should be implemented based on your Redis setup
@@ -56,10 +54,12 @@ async def integration_redis_connection():
 @pytest.fixture(scope="module")
 async def integration_rabbitmq_connection():
     """
-    Create and provide a test RabbitMQ connection for integration tests.
+    Provide a RabbitMQ connection for integration tests and ensure it is closed after use.
     
-    Yields:
-        RabbitMQ connection object if configured, otherwise `None`.
+    This fixture yields a RabbitMQ connection instance to tests; if a connection is created, it will be closed during fixture teardown.
+    
+    Returns:
+        connection: A RabbitMQ connection instance, or `None` if no connection was established.
     """
     # TODO: Set up actual test RabbitMQ connection
     # This is a placeholder that should be implemented based on your RabbitMQ setup
@@ -76,9 +76,12 @@ async def integration_rabbitmq_connection():
 @pytest.fixture
 async def clean_test_data(integration_db_connection):
     """
-    Perform cleanup of test data in the integration database before and after each test.
+    Provide a test fixture that runs database cleanup before and after a test.
     
-    This fixture uses the integration_db_connection fixture to remove test data prior to the test running and again after the test completes. It yields control to the test in between the pre- and post-test cleanup steps.
+    This fixture receives the module-scoped `integration_db_connection`, yields control to the test, and is intended to perform pre-test and post-test cleanup using that connection. Cleanup calls are currently placeholders (commented out) and should be implemented to remove or reset test data around each test run.
+    
+    Parameters:
+        integration_db_connection: Database connection object provided by the `integration_db_connection` fixture.
     """
     # Clean before test
     # await clean_database(integration_db_connection)

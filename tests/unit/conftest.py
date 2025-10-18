@@ -12,10 +12,10 @@ from unittest.mock import Mock, patch
 @pytest.fixture
 def mock_logger():
     """
-    Create a Mock-based logger exposing common logging methods for unit tests.
+    Create a Mock-based logger for unit tests.
     
     Returns:
-        Mock: A Mock object with `info`, `debug`, `warning`, `error`, and `exception` attributes, each a Mock.
+        logger (unittest.mock.Mock): A Mock configured with callable attributes `info`, `debug`, `warning`, `error`, and `exception` (each a Mock) to capture and assert logging calls.
     """
     logger = Mock()
     logger.info = Mock()
@@ -29,12 +29,12 @@ def mock_logger():
 @pytest.fixture
 def mock_http_client():
     """
-    Create a Mock HTTP client with common HTTP verb methods for unit tests.
+    Provide a mock HTTP client exposing common request methods for unit tests.
     
-    The returned object has `get`, `post`, `put`, and `delete` attributes, each set to a `Mock` so tests can assert calls and configure return values.
+    Each of the client's `get`, `post`, `put`, and `delete` attributes is a Mock that can be configured and asserted against in tests.
     
     Returns:
-        client (Mock): Mock object representing an HTTP client with mocked verb methods.
+        client (Mock): Mock object representing an HTTP client with `get`, `post`, `put`, and `delete` mocks.
     """
     client = Mock()
     client.get = Mock()
@@ -47,12 +47,16 @@ def mock_http_client():
 @pytest.fixture
 def isolated_environment(monkeypatch):
     """
-    Configure environment variables for unit tests.
+    Configure a pytest monkeypatch to provide an isolated environment for unit tests.
     
-    Sets ENVIRONMENT to "test" and LOG_LEVEL to "DEBUG" on the provided pytest monkeypatch fixture.
+    Sets environment variables ENVIRONMENT to "test" and LOG_LEVEL to "DEBUG", and returns the provided monkeypatch object so callers can further modify or inspect it.
+    
+    Parameters:
+        monkeypatch: pytest.MonkeyPatch
+            The pytest monkeypatch fixture to configure.
     
     Returns:
-        monkeypatch: The same monkeypatch object passed in, with the environment variables applied.
+        pytest.MonkeyPatch: The same monkeypatch instance after applying the environment changes.
     """
     # Set test environment variables
     monkeypatch.setenv("ENVIRONMENT", "test")

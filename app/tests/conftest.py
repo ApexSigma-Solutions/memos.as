@@ -4,14 +4,10 @@ import pytest
 
 def pytest_configure(config):
     """
-    Register the "integration" pytest marker.
-    
-    Adds an ini-style marker description so tests can be marked as requiring integration infrastructure
-    (e.g., Neo4j, PostgreSQL, Qdrant).
+    Register the "integration" pytest marker for tests that require external integration infrastructure.
     
     Parameters:
-        config: pytest.Config
-            The pytest configuration object to which the marker description is added.
+        config (pytest.Config): Pytest configuration object used to register markers.
     """
     config.addinivalue_line("markers", "integration: mark test as requiring integration infra (neo4j, postgres, qdrant)")
 
@@ -19,19 +15,12 @@ def pytest_configure(config):
 @pytest.fixture(scope="session")
 def neo4j_test_container(request):
     """
-    Provide an optional pytest fixture that yields a Neo4j Bolt URL for tests or `None` if testcontainers is unavailable.
+    Provide a session-scoped pytest fixture that yields a Neo4j Bolt URL when a Neo4j testcontainer can be started, or yields None if testcontainers is not available.
     
-    Attempts to start a temporary Neo4j testcontainer and yields its Bolt URL so tests can connect to it. If the `testcontainers` package is not available or container startup fails, yields `None` so tests may use existing environment-configured infrastructure.
-    
-    Parameters:
-        request: The pytest `request` fixture (used for fixture lifecycle management).
+    If a container is started, sets NEO4J_URI and NEO4J_USERNAME in the environment only if they are not already set. If the container generates a password, callers may read NEO4J_PASSWORD from the environment.
     
     Returns:
-        bolt_url (str or None): The Bolt URL (e.g. "bolt://host:7687") of the started Neo4j container, or `None` if no container was started.
-    
-    Notes:
-        - When a container is started, this fixture sets environment variables `NEO4J_URI` (to the Bolt URL) and `NEO4J_USERNAME` (to "neo4j") if they are not already set.
-        - If the container provides a generated password, callers may read `NEO4J_PASSWORD` from the environment as needed.
+        bolt_url (str): The Bolt URI for the started Neo4j container (e.g. "bolt://host:port"), or `None` if testcontainers is unavailable.
     """
     try:
         from testcontainers.neo4j import Neo4jContainer
