@@ -19,13 +19,16 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # Copy Poetry project files (build context is repo root)
-COPY ./services/memos.as/pyproject.toml ./services/memos.as/poetry.lock* ./
+COPY pyproject.toml poetry.lock* ./
 
 # Copy the shared core library
-COPY ./libs/apexsigma-core ./libs/apexsigma-core
+COPY ../libs/apexsigma-core ./libs/apexsigma-core
 
 # Install dependencies without dev packages for production
 RUN poetry install --no-root --only=main
 
 # Copy the application's source code
-COPY ./services/memos.as/ ./
+COPY . ./
+
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8090"]
