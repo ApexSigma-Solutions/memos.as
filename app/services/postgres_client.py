@@ -95,9 +95,9 @@ class PostgresClient:
     def __init__(self):
         # Check for DATABASE_URL first (Docker override)
         """
-        Initialize the PostgresClient by resolving the database URL, creating a SQLAlchemy engine and session factory, and ensuring the schema exists.
+        Initialize the PostgresClient by configuring the database engine, creating a session factory, and ensuring ORM tables exist.
         
-        Resolves the connection URL from the DATABASE_URL environment variable or from POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD. Creates a pooled SQLAlchemy engine with production-oriented defaults and a SessionLocal factory. Attempts to create all tables from the ORM metadata; if that fails (for example when Postgres is unavailable), reconfigures to use the MEMOS_SQLITE_URL environment variable or an in-memory SQLite database ("sqlite:///:memory:") as a fallback and recreates the schema.
+        Sets the database URL from DATABASE_URL or from individual POSTGRES_* environment variables, constructs a SQLAlchemy engine and a sessionmaker bound to that engine, and invokes Base.metadata.create_all to create missing tables. If table creation against the configured database fails, reconfigures the client to use an in-memory SQLite database (or MEMOS_SQLITE_URL if set) and recreates the schema so tests and local runs can proceed without a running Postgres instance.
         """
         self.database_url = os.environ.get("DATABASE_URL")
 
@@ -148,10 +148,10 @@ class PostgresClient:
     @contextmanager
     def get_session(self) -> Session:
         """
-        Provide a database session context that commits on successful exit, rolls back on exception, and always closes the session.
+        Provide a transactional database session for use in a `with` block, ensuring commit on success, rollback on exception, and always closing the session.
         
-        Yields:
-            session (Session): The active SQLAlchemy Session; it will be committed on normal exit, rolled back if an exception occurs, and closed in all cases.
+        Returns:
+            session (Session): A SQLAlchemy Session instance that will be committed when the context block exits normally, rolled back and re-raised if an exception occurs, and closed in all cases.
         """
         session = self.SessionLocal()
         try:

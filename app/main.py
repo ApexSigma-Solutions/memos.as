@@ -56,9 +56,9 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     """
-    Initialize and apply observability instrumentation to the FastAPI app and database clients.
+    Initialize observability instrumentation for the application during startup.
     
-    Attempts to obtain the ObservabilityService and instrument the FastAPI application and configured database clients. Instrumentation failures are suppressed (ignored) to allow startup in test or minimal environments where observability may be unavailable.
+    Attempts to instrument the FastAPI app and configured database clients via the Observability service; instrumentation failures are ignored to allow startup in tests or minimal environments.
     """
     obs = get_observability()
     try:

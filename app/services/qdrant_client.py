@@ -29,9 +29,9 @@ class QdrantMemoryClient:
 
     def __init__(self):
         """
-        Initialize the QdrantMemoryClient instance.
+        Initialize the QdrantMemoryClient.
         
-        Reads QDRANT_HOST and QDRANT_PORT from the environment (defaults: "localhost" and 6333), sets the collection name to "memories", and attempts to create a real Qdrant client when the qdrant-client package is available. If the real client is created, ensures the collection exists; on failure or when the package is unavailable, falls back to a stub mode with `self.client = None` and prints a warning if initialization fails.
+        Sets host, port, and collection name from environment (defaults: host "localhost", port 6333, collection "memories"). If the qdrant-client package and QdrantClient are available, attempts to create a real Qdrant client and ensure the collection exists; on failure prints a warning and falls back to a stub mode where `self.client` is `None`. When the package is unavailable, runs in stub mode with `self.client` set to `None`.
         """
         self.host = os.environ.get("QDRANT_HOST", "localhost")
         self.port = int(os.environ.get("QDRANT_PORT", 6333))
@@ -50,7 +50,11 @@ class QdrantMemoryClient:
             self.client = None
 
     def _ensure_collection_exists(self):
-        """Create the memories collection if it doesn't exist"""
+        """
+        Ensure the memories collection exists in Qdrant, creating it if necessary.
+        
+        If a real Qdrant client is not available, this is a no-op. When creating the collection, the vector size is taken from the EMBEDDING_SIZE environment variable (default 384) and cosine distance is used. Prints status messages on creation or if the collection already exists; prints an error message if an exception occurs.
+        """
         if not self.client:
             # No-op in test environments
             return
@@ -82,16 +86,16 @@ class QdrantMemoryClient:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
-        Store a vector embedding and associate it with a PostgreSQL memory record.
-        
-        Parameters:
-            embedding (List[float]): The vector representation of the memory content.
-            memory_id (int): The PostgreSQL memory ID to link with the stored vector.
-            agent_id (str): Identifier for the agent owning the memory; defaults to "default_agent".
-            metadata (Optional[Dict[str, Any]]): Optional arbitrary metadata to store with the vector.
-        
+        Store a vector embedding with reference to PostgreSQL memory ID.
+
+        Args:
+            embedding: Vector embedding of the memory content
+            memory_id: PostgreSQL memory ID for linking
+            agent_id: The agent ID to associate with the memory
+            metadata: Optional metadata to store with the vector
+
         Returns:
-            Optional[str]: The Qdrant point ID (a UUID string) if the embedding was stored successfully, `None` on failure.
+            Qdrant point ID if successful, None if failed
         """
         try:
             if not self.client:
@@ -124,20 +128,16 @@ class QdrantMemoryClient:
         agent_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Search for memories whose stored embeddings are most similar to a query embedding.
+        Finds memories whose embeddings are most similar to the provided query embedding.
         
         Parameters:
-            query_embedding (List[float]): The query vector to compare against stored embeddings.
-            top_k (int): Maximum number of results to return (default 5).
-            score_threshold (float): Minimum similarity score required for results (default 0.0).
-            agent_id (Optional[str]): If provided, restrict results to memories associated with this agent ID.
+            query_embedding (List[float]): Embedding vector to use as the search query.
+            top_k (int): Maximum number of results to return.
+            score_threshold (float): Minimum similarity score required for returned results.
+            agent_id (Optional[str]): If provided, restricts results to memories belonging to this agent.
         
         Returns:
-            List[Dict[str, Any]]: A list of result objects each containing:
-                - memory_id: the associated PostgreSQL memory identifier (may be None if missing),
-                - score: similarity score for the hit,
-                - point_id: internal vector store point identifier,
-                - metadata: associated metadata dictionary (empty dict if absent).
+            List[Dict[str, Any]]: A list of result dictionaries each containing `memory_id`, `score`, `point_id`, and `metadata`. Empty list if no client is available or on error.
         """
         try:
             if not self.client:
@@ -175,15 +175,18 @@ class QdrantMemoryClient:
 
     def get_embedding_by_memory_id(self, memory_id: int) -> Optional[Dict[str, Any]]:
         """
-        Retrieve the stored embedding and associated payload for a given PostgreSQL memory ID.
+        Retrieve the stored embedding and associated data for a given PostgreSQL memory ID.
+        
+        Parameters:
+            memory_id (int): The PostgreSQL memory identifier to look up.
         
         Returns:
-            result (Optional[dict]): A dictionary with keys:
+            result (Optional[Dict[str, Any]]): A dictionary containing:
                 - "point_id": the Qdrant point identifier
-                - "vector": the stored embedding vector
-                - "memory_id": the PostgreSQL memory ID from the payload
-                - "metadata": the payload's metadata dictionary
-            Returns `None` if no matching embedding is found, if the client is unavailable, or if an error occurs.
+                - "vector": the embedding vector
+                - "memory_id": the stored PostgreSQL memory ID
+                - "metadata": additional payload metadata (empty dict if absent)
+            Returns `None` if no matching point is found or if the Qdrant client is unavailable.
         """
         try:
             if not self.client:
@@ -217,10 +220,13 @@ class QdrantMemoryClient:
 
     def delete_embedding(self, point_id: str) -> bool:
         """
-        Delete the stored embedding with the given Qdrant point ID.
+        Remove an embedding point from the memories collection by its Qdrant point ID.
+        
+        Parameters:
+            point_id (str): The Qdrant point identifier to delete.
         
         Returns:
-            bool: `True` if the embedding was deleted or the client is unavailable (stub mode), `False` on error.
+            True if the point was deleted or no client was configured (no-op), False on failure.
         """
         try:
             if not self.client:
@@ -235,13 +241,13 @@ class QdrantMemoryClient:
 
     def delete_embedding_by_memory_id(self, memory_id: int) -> bool:
         """
-        Delete embeddings associated with a PostgreSQL memory record.
+        Delete all stored embeddings associated with a given PostgreSQL memory ID.
         
         Parameters:
-            memory_id (int): The PostgreSQL memory ID whose associated embeddings should be deleted.
+        	memory_id (int): The PostgreSQL memory identifier to match for deletion.
         
         Returns:
-            bool: `True` if the delete operation succeeded or no real Qdrant client is available (stub mode), `False` if an error occurred.
+        	`True` on successful deletion or when running in stub mode, `False` if an error occurred.
         """
         try:
             if not self.client:

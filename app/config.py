@@ -14,9 +14,9 @@ class Config:
     
     def __init__(self):
         """
-        Initialize a Config instance and populate its configuration store.
+        Initialize the Config instance and populate its configuration mapping.
         
-        Creates an internal dictionary for configuration values, loads defaults from the centralized settings source, and merges any overrides from the optional retention.json file if present.
+        Creates an empty dictionary at self.config, populates it with values read from the application's Pydantic settings, and then overlays any values found in the optional retention JSON file (default: "memos.as/config/retention.json").
         """
         self.config = {}
         self.load_config_from_env()
@@ -24,9 +24,9 @@ class Config:
 
     def load_config_from_env(self):
         """
-        Populate the instance's config dictionary with retention and namespace values from the centralized Pydantic settings.
+        Populate the instance config dictionary with TTL and namespace values sourced from the application's Pydantic settings.
         
-        This sets the following keys in self.config: "MEMORY_QUERY_TTL", "EMBEDDING_TTL", "WORKING_MEMORY_TTL", "TOOL_CACHE_TTL", "LLM_RESPONSE_TTL", "MEMORY_EXPIRATION_INTERVAL_SECONDS", and "APEX_NAMESPACE", using the corresponding attributes from the module-level `_settings` object.
+        Sets the following keys on self.config: MEMORY_QUERY_TTL, EMBEDDING_TTL, WORKING_MEMORY_TTL, TOOL_CACHE_TTL, LLM_RESPONSE_TTL, MEMORY_EXPIRATION_INTERVAL_SECONDS, and APEX_NAMESPACE.
         """
         self.config["MEMORY_QUERY_TTL"] = _settings.memory_query_ttl
         self.config["EMBEDDING_TTL"] = _settings.embedding_ttl
@@ -38,10 +38,12 @@ class Config:
 
     def load_config_from_file(self, filepath="memos.as/config/retention.json"):
         """
-        Load configuration from a JSON file and merge its keys into the instance's config.
+        Load configuration from a JSON file and merge its contents into this instance's config.
+        
+        If the file at `filepath` exists, parse it as JSON and update `self.config` with the resulting mapping; if the file does not exist, no changes are made. Any file I/O or JSON parsing errors will propagate to the caller.
         
         Parameters:
-            filepath (str): Path to a JSON file containing configuration keys. If the file exists, its parsed entries are merged into self.config, overwriting any existing keys with the same names. The default path is "memos.as/config/retention.json".
+            filepath (str): Path to the JSON configuration file (default: "memos.as/config/retention.json").
         """
         if os.path.exists(filepath):
             with open(filepath, "r") as f:

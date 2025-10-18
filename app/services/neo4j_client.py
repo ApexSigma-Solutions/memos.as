@@ -28,16 +28,24 @@ class Neo4jClient:
         # In Docker compose networks the neo4j service is reachable at the hostname 'neo4j'.
         # Default to that so tests running inside containers can connect without extra env vars.
         """
-        Initialize client configuration from environment variables and prepare an in-memory fallback store.
+        Initialize the Neo4j client configuration and an in-memory fallback store.
         
-        Reads connection settings from environment variables: NEO4J_URI (default "bolt://neo4j:7687"), NEO4J_AUTH (optional "user/password" form), or NEO4J_USER / NEO4J_USERNAME and NEO4J_PASSWORD with sensible defaults. Does not open a network connection at construction time; the Neo4j driver is left None for lazy connection attempts. Creates a minimal in-memory fallback store under self._fallback with keys:
-        - "memories": mapping of memory_id -> memory dict
-        - "tools": mapping of tool name/id -> tool dict
-        - "concepts": mapping of concept name -> concept dict
-        - "agents": mapping of agent name -> agent dict
-        - "relationships": list of recorded relationships (tuples or dicts describing from, to, type, properties)
+        Reads connection settings from environment variables and prepares the client without making a network connection. Environment variables considered:
+        - NEO4J_URI: connection URI (defaults to "bolt://neo4j:7687").
+        - NEO4J_AUTH: optional "user/password" pair (preferred if present).
+        - NEO4J_USER or NEO4J_USERNAME: username fallback (defaults to "neo4j").
+        - NEO4J_PASSWORD: password fallback (defaults to "apexsigma_neo4j_password").
         
-        This enables the client to operate in a limited offline mode when a Neo4j instance is unavailable.
+        Sets:
+        - self.uri (str): resolved connection URI.
+        - self.username (str) and self.password (str): resolved credentials.
+        - self.driver: initialized to None to enforce lazy connection attempts.
+        - self._fallback (dict): in-memory store used when Neo4j is unavailable, with keys:
+            - "memories": dict mapping memory_id -> memory dict
+            - "tools": dict of tools
+            - "concepts": dict of concepts
+            - "agents": dict of agents
+            - "relationships": list of relationship tuples/records for fallback operations
         """
         self.uri = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
         # Allow docker-compose to provide credentials via NEO4J_AUTH (format: user/password)
@@ -78,15 +86,7 @@ class Neo4jClient:
         }
 
     def _connect(self):
-        """
-        Attempt to establish and verify a Neo4j driver connection for this client.
-        
-        Tries to create and test a GraphDatabase driver, updating self.driver on success.
-        On repeated failures the method leaves self.driver as None, performs a localhost
-        fallback when the configured URI appears to reference a Docker service hostname
-        (e.g., replacing 'neo4j' with 'localhost'), and updates self.uri if the fallback
-        succeeds. Connection attempts and outcomes are reported via stdout.
-        """
+        """Establish connection to Neo4j database with retry logic."""
         import time
 
         max_retries = 5
@@ -147,24 +147,18 @@ class Neo4jClient:
 
     def _is_connected(self) -> bool:
         """
-        Check whether a Neo4j driver is configured and available.
+        Check whether a Neo4j driver is currently available for use.
         
         Returns:
-            True if a Neo4j driver is configured (connection established), False otherwise.
+            bool: `True` if the client has an initialized Neo4j driver, `False` otherwise.
         """
         return self.driver is not None
 
     def _create_constraints(self):
         """
-        Ensure uniqueness constraints exist for core node labels in the connected Neo4j database.
+        Create uniqueness constraints for core node types (Memory, Tool, Concept, Agent).
         
-        Creates uniqueness constraints for:
-        - Memory.id
-        - Tool.name
-        - Concept.name
-        - Agent.name
-        
-        If the client is not connected to Neo4j this method is a no-op. Existing constraints are ignored without raising.
+        If the client is not connected to a Neo4j driver, this is a no-op. Attempts to create the constraints are executed against the database and any errors (for example, constraints that already exist) are suppressed.
         """
         if not self.driver:
             return
@@ -187,12 +181,10 @@ class Neo4jClient:
     @contextmanager
     def get_session(self):
         """
-        Provide a context manager that yields a Neo4j session or `None` when Neo4j is unavailable.
+        Provide a context manager that yields a Neo4j session when connected or `None` when the client is operating in fallback (in-memory) mode.
         
-        When the client is connected, yields an active Neo4j session and ensures the session is closed on exit. When not connected, yields `None` to signal callers to use the in-memory fallback store.
-        
-        Returns:
-            session (neo4j.Session | None): An active Neo4j session if connected, `None` otherwise.
+        Yields:
+            session (neo4j.Session | None): A live Neo4j session if the client is connected; `None` to signal callers should use the in-memory fallback store.
         """
         # If there's no live driver, yield None to indicate callers should
         # fall back to the in-memory store. This avoids raising at import
@@ -218,9 +210,9 @@ class Neo4jClient:
         self, memory_id: int, content: str, concepts: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Create a Memory node and associate it with the provided concepts.
+        Create a Memory node and associate it with the given concepts.
         
-        Creates a memory record with the given id and content, and links the memory to each name in `concepts`. In environments without a Neo4j backend this populates the local in-memory fallback store; in either case the function returns a dictionary representation of the created memory node.
+        When Neo4j is connected, creates a Memory node in the database and links it to each concept in `concepts`. When running in fallback mode (Neo4j unavailable), stores an equivalent memory record in the in-memory store and records MENTIONS relationships.
         
         Parameters:
             memory_id (int): Unique identifier for the memory.
@@ -228,8 +220,7 @@ class Neo4jClient:
             concepts (Optional[List[str]]): List of concept names to associate with the memory.
         
         Returns:
-            Dict[str, Any]: Dictionary representing the created memory node with keys including
-            `id`, `content`, `created_at`, `updated_at`, and `concepts` (list of associated concept names).
+            Dict[str, Any]: A dictionary representation of the created Memory node (database node properties when connected, or the in-memory record when using the fallback).
         """
         concepts = concepts or []
         # If Neo4j is available, use it. Otherwise use the in-memory fallback.
@@ -281,16 +272,17 @@ class Neo4jClient:
         self, name: str, description: str, usage: str, tags: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Create or update a Tool node in the knowledge graph or in the in-memory fallback.
+        Create or update a Tool node with the given metadata and return its representation.
         
         Parameters:
-            name (str): Tool name used as the unique identifier.
+            name (str): Unique tool name.
             description (str): Human-readable description of the tool.
-            usage (str): Example or explanation of how the tool is used.
-            tags (Optional[List[str]]): Optional list of tag strings associated with the tool.
+            usage (str): Short usage notes or instructions.
+            tags (List[str], optional): List of tag strings associated with the tool.
         
         Returns:
-            Dict[str, Any]: The tool node properties (e.g., name, description, usage, tags, and updated timestamps when available).
+            Dict[str, Any]: When connected to Neo4j, a dict representing the created/merged Tool node (node properties).
+            In fallback mode, a plain dict with keys "name", "description", "usage", and "tags" representing the stored tool.
         """
         tags = tags or []
         if self._is_connected():
@@ -319,14 +311,10 @@ class Neo4jClient:
 
     def create_concept_node(self, name: str, description: Optional[str] = None) -> Dict[str, Any]:
         """
-        Create or update a Concept node identified by name and optionally set its description.
-        
-        Parameters:
-            name (str): The unique name of the concept.
-            description (Optional[str]): An optional textual description to set or update for the concept.
+        Create or update a Concept node and return its properties.
         
         Returns:
-            Dict[str, Any]: A dictionary of the concept's properties. When connected to Neo4j this contains the node properties (e.g., `name`, `description`, `updated_at`); when running in fallback mode this is a stored dict with `name` and `description`.
+            Dict[str, Any]: The concept node properties; when connected to Neo4j this is the node record converted to a dict, otherwise an in-memory dict with keys like `name` and `description`.
         """
         if self._is_connected():
             with self.get_session() as session:
@@ -351,17 +339,17 @@ class Neo4jClient:
         self, name: str, role: Optional[str] = None, capabilities: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Create or update an Agent node in the knowledge graph.
+        Create or update an Agent node in the graph and return its properties.
         
-        When connected to Neo4j, merges an Agent node with the given properties and returns the node's properties as a dict (including `updated_at` when present). When Neo4j is unavailable, stores and returns an in-memory agent dict.
+        If Neo4j is connected, merges an Agent node by `name`, updates `role`, `capabilities`, and sets `updated_at`, then returns the node's properties as a dict. If Neo4j is not connected, stores and returns a plain dict in the in-memory fallback.
         
         Parameters:
-            name (str): Unique agent name.
-            role (Optional[str]): Optional role or description of the agent.
-            capabilities (Optional[List[str]]): Optional list of capability strings.
+            name (str): Agent name used as the unique identifier.
+            role (Optional[str]): Optional role assigned to the agent.
+            capabilities (Optional[List[str]]): Optional list of capabilities; defaults to an empty list when not provided.
         
         Returns:
-            dict: Agent properties (e.g., `name`, `role`, `capabilities`, and `updated_at` when present).
+            Dict[str, Any]: A dictionary of the agent's properties. When persisted to Neo4j this will include `updated_at`; the fallback path returns a dict with `name`, `role`, and `capabilities`.
         """
         capabilities = capabilities or []
         if self._is_connected():
@@ -389,7 +377,15 @@ class Neo4jClient:
         self, memory_id: int, content: str, concepts: List[str] = None
     ) -> Dict:
         """
-        Store a new memory node in the knowledge graph.
+        Create and persist a memory node in the knowledge graph (or in-memory fallback) and associate it with optional concepts.
+        
+        Parameters:
+            memory_id (int): Unique identifier for the memory.
+            content (str): Text content of the memory.
+            concepts (List[str], optional): List of concept names to link to the memory.
+        
+        Returns:
+            dict: Representation of the created memory node (includes at least `id`, `content`, `created_at`, and `updated_at`; may include concept relationships).
         """
         return self.create_memory_node(memory_id, content, concepts)
 
@@ -399,14 +395,14 @@ class Neo4jClient:
         self, session: Session, memory_id: int, concept: str
     ):
         """
-        Create or ensure a Concept node and a MENTIONS relationship from a Memory node to that Concept.
+        Create or record a MENTIONS relationship between a Memory and a Concept.
         
-        When connected to Neo4j, ensures the Concept exists (creating it if missing), updates its timestamp, and creates the MENTIONS relationship from the Memory identified by `memory_id` to that Concept, setting relationship timestamps as needed. If `session` is None or the client is not connected, record the concept and the MENTIONS relationship in the in-memory fallback store instead.
+        When connected to Neo4j (a valid Session), ensures a Concept node exists, updates its timestamp, and creates/merges a MENTIONS relationship from the Memory node with creation timestamp. If `session` is None or the client is not connected, records the concept and relationship in the in-memory fallback store.
         
         Parameters:
-            session (neo4j.Session | None): Active Neo4j session to use; pass `None` to operate on the in-memory fallback.
-            memory_id (int): Identifier of the Memory node that mentions the concept.
-            concept (str): Name of the Concept to create or link.
+            session (neo4j.Session | None): Active Neo4j session, or `None` to use the in-memory fallback.
+            memory_id (int): Identifier of the Memory node.
+            concept (str): Name of the Concept to relate to the Memory.
         """
         # If session is None, we're in fallback mode.
         if session is None or not self._is_connected():
@@ -438,18 +434,18 @@ class Neo4jClient:
         properties: Dict = None,
     ):
         """
-        Create a relationship between two nodes in the graph.
+        Create or merge a relationship of the given type between two nodes.
+        
+        If the client is connected to Neo4j, ensures a relationship of `relationship_type` exists between the node identified by `from_node` and the node identified by `to_node`, merges provided `properties` into the relationship, and returns the stored relationship properties as a dict (or `None` if no relationship was returned). When Neo4j is not available, records the relationship in the in-memory fallback store and returns a dict with keys `from`, `to`, `type`, and `properties`.
         
         Parameters:
-            from_node (dict): Representation of the source node. Should include an `id` and optionally a `label`.
-            to_node (dict): Representation of the target node. Should include an `id` and optionally a `label`.
-            relationship_type (str): Type/name of the relationship to create.
-            properties (dict, optional): Properties to set on the relationship.
+            from_node (dict): A mapping representing the source node. Expected to contain an `id` key and either a `label` key or a single top-level label key mapping to the node properties.
+            to_node (dict): A mapping representing the target node. Expected to contain an `id` key and either a `label` key or a single top-level label key mapping to the node properties.
+            relationship_type (str): The relationship type/name to create or merge (e.g., "MENTIONS").
+            properties (dict, optional): Properties to set or merge on the relationship.
         
         Returns:
-            dict or None: When the operation records the relationship in the fallback store, returns a dict with keys
-            `from`, `to`, `type`, and `properties`. When executed against Neo4j, returns a dict of the relationship's
-            properties if a relationship was created or merged, or `None` if no relationship was produced.
+            dict or None: In fallback mode, a dict with keys `from`, `to`, `type`, and `properties`. When connected to Neo4j, a dict of the relationship's stored properties if available, or `None`.
         """
         properties = properties or {}
 
@@ -500,15 +496,17 @@ class Neo4jClient:
         """
         Find memories that share concepts with the specified memory.
         
+        Searches for other Memory nodes that mention the same Concept(s) as the memory identified by memory_id. When a Neo4j driver is available this runs a Cypher query that counts shared concepts; when Neo4j is unavailable it performs an equivalent search against the in-memory fallback store.
+        
         Parameters:
-            memory_id (int): ID of the memory to find related memories for.
-            relationship_types (Optional[List[str]]): Relationship types to consider when determining relatedness (defaults to ["MENTIONS"]).
+            memory_id (int): Identifier of the source memory to find related memories for.
+            relationship_types (Optional[List[str]]): Relationship types to consider when traversing (defaults to ["MENTIONS"]).
             limit (int): Maximum number of related memories to return.
         
         Returns:
-            List[Dict[str, Any]]: A list of objects each containing:
-                - `memory` (dict): The related memory's properties.
-                - `shared_concepts` (int): Number of concepts shared with the target memory.
+            List[Dict[str, Any]]: A list of results ordered by descending shared concept count. Each item is a dict with:
+                - "memory": the related memory node as a dict of properties
+                - "shared_concepts": the number of concepts shared with the source memory
         """
         relationship_types = relationship_types or ["MENTIONS"]
 
@@ -552,16 +550,16 @@ class Neo4jClient:
 
     def find_tools_by_concept(self, concept: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        Retrieve tools associated with a concept, ordered by how many memories reference them.
+        Find tools associated with the given concept, ranked by how many memories reference them.
         
         Parameters:
-        	concept (str): Concept name to search for.
-        	limit (int): Maximum number of tools to return (ordered by usage count).
+            concept (str): Name of the Concept to search for.
+            limit (int): Maximum number of tools to return.
         
         Returns:
-        	List[Dict[str, Any]]: A list of objects each containing:
-        		- `tool` (dict): The tool node's properties.
-        		- `usage_count` (int): Number of distinct memories that reference the tool, ordered descending.
+            List[Dict[str, Any]]: List of items where each item contains:
+                - "tool": a dict of the tool's properties
+                - "usage_count": int count of distinct memories that reference the tool
         """
         if not self._is_connected():
             # Basic fallback: return tools referenced by memories that mention the concept
@@ -606,16 +604,16 @@ class Neo4jClient:
 
     def get_concept_network(self, concept: str, depth: int = 2) -> Dict[str, Any]:
         """
-        Retrieve a subgraph of Concept nodes connected to the given concept up to a specified depth.
+        Return the concept graph around a given concept up to a specified depth.
         
         Parameters:
-        	concept (str): Name of the starting Concept node.
-        	depth (int): Maximum path length to traverse from the starting concept (1 or greater).
+            concept (str): The starting Concept name to expand.
+            depth (int): Maximum number of relationship hops to traverse from the starting concept.
         
         Returns:
-        	graph (dict): Dictionary with two keys:
-        		- nodes (List[dict]): Each node as {"id": <node_identifier>, "properties": <properties_dict>}.
-        		- relationships (List[dict]): Each relationship as {"start": <start_id>, "end": <end_id>, "type": <rel_type>, "properties": <properties_dict>}.
+            Dict[str, Any]: A dictionary with keys "nodes" and "relationships".
+                "nodes" is a list of objects with "id" and "properties".
+                "relationships" is a list of objects with "start", "end", "type", and "properties".
         """
         if not self._is_connected():
             # Fallback: return nodes that are concepts and relationships that mention them
@@ -644,14 +642,12 @@ class Neo4jClient:
 
     def get_related_nodes(self, node_id: str) -> Dict[str, Any]:
         """
-        Retrieve the node with the given id and its directly connected nodes and relationships.
-        
-        When Neo4j is unavailable, returns the same structure derived from the in-memory fallback store.
+        Return the subgraph consisting of the given node and all nodes directly connected to it, including the connecting relationships.
         
         Returns:
-            graph (dict): A mapping with two keys:
-                - nodes (List[dict]): Each dict has `id` (node identifier) and `properties` (node properties).
-                - relationships (List[dict]): Each dict has `start` (start node id), `end` (end node id), `type` (relationship type), and `properties` (relationship properties).
+            graph (Dict[str, Any]): A dictionary with keys:
+                - "nodes": List of node dictionaries, each with "id" and "properties".
+                - "relationships": List of relationship dictionaries, each with "start", "end", "type", and "properties".
         """
         if not self._is_connected():
             nodes = []
@@ -678,22 +674,10 @@ class Neo4jClient:
 
     def get_shortest_path(self, start_node_id: str, end_node_id: str) -> Dict[str, Any]:
         """
-        Finds the shortest path between two nodes in the graph.
-        
-        When connected to Neo4j, uses APOC's shortestPath (limited to length 10) and returns the path formatted as nodes and relationships. When not connected, returns a naive fallback containing any directly recorded relationships between the two node ids.
-        
-        Parameters:
-            start_node_id (str): Identifier of the start node.
-            end_node_id (str): Identifier of the end node.
+        Finds the shortest path between two nodes in the knowledge graph.
         
         Returns:
-            dict: A graph representation with keys:
-                - nodes (list): List of node dictionaries (each includes an `id` and `properties`) present on the path.
-                - relationships (list): List of relationship dictionaries with keys:
-                    - start (str): start node id
-                    - end (str): end node id
-                    - type (str): relationship type
-                    - properties (dict): relationship properties
+            dict: A mapping with keys "nodes" and "relationships". "nodes" is a list of node dictionaries representing the nodes along the shortest path; "relationships" is a list of relationship dictionaries each containing "start", "end", "type", and "properties". If Neo4j is unavailable, returns any direct relationships between the two node ids and an empty "nodes" list.
         """
         if not self._is_connected():
             # Very naive fallback: if direct relationships exist between the two ids, return them
@@ -722,18 +706,18 @@ class Neo4jClient:
 
     def get_subgraph(self, node_id: str, depth: int = 1) -> Dict[str, Any]:
         """
-        Get the subgraph around a node up to a specified traversal depth.
+        Return the subgraph centered on the specified node up to the given depth.
         
-        When connected to Neo4j this returns the neighborhood discovered by APOC's subgraph traversal; when running in fallback mode this returns any stored nodes and relationships that reference the node.
+        Searches for nodes and relationships reachable from the node identified by `node_id` up to `depth` hops. When a Neo4j connection is available the result is obtained from the database (APOC subgraphAll); when Neo4j is unavailable the method returns an in-memory fallback representation.
         
         Parameters:
-            node_id (str): Identifier of the central node to expand.
-            depth (int): Maximum traversal depth from the central node (0 includes only the node).
+            node_id (str): Identifier of the central node.
+            depth (int): Maximum path length (number of hops) to include; defaults to 1.
         
         Returns:
-            dict: A mapping with keys:
-                - nodes: list of node objects each with `id` and `properties`.
-                - relationships: list of relationship objects each with `start`, `end`, `type`, and `properties`.
+            Dict[str, Any]: A dictionary with keys:
+                - "nodes": list of node dictionaries, each containing "id" and "properties".
+                - "relationships": list of relationship dictionaries, each containing "start", "end", "type", and "properties".
         """
         if not self._is_connected():
             nodes = []
@@ -761,15 +745,13 @@ class Neo4jClient:
 
     def extract_concepts_from_content(self, content: str) -> List[str]:
         """
-        Extract a short list of candidate concept tokens found in the provided text.
-        
-        This uses a lightweight heuristic: selects alphabetic words longer than four characters, converts them to title case, removes duplicates, and returns up to 10 items.
+        Extracts potential concept keywords from a text string using a simple heuristic.
         
         Parameters:
-            content (str): Text to extract concepts from.
+            content: Text to extract concepts from.
         
         Returns:
-            List[str]: Up to 10 unique candidate concept strings (title-cased).
+            A list of extracted concept candidates (capitalized). Duplicates are removed and the list is limited to at most 10 items.
         """
         # This is a placeholder implementation
         # In production, you might use NLP libraries like spaCy, NLTK, or LLM APIs
@@ -788,13 +770,17 @@ class Neo4jClient:
 
     def run_cypher_query(self, query: str, parameters: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """
-        Run a raw Cypher query against the connected Neo4j database.
+        Execute a raw Cypher query against the connected Neo4j database.
+        
+        Parameters:
+            query (str): Cypher query string to execute.
+            parameters (Optional[Dict]): Mapping of parameter names to values for the query.
         
         Returns:
-            A list of records, each represented as a dict mapping field names to their values.
+            List[Dict[str, Any]]: A list of result records where each record is converted to a dict of keys to values.
         
         Raises:
-            NotImplementedError: If Neo4j is unavailable and the fallback in-memory store is being used.
+            NotImplementedError: If Neo4j is unavailable and the in-memory fallback is active (raw Cypher not supported).
         """
         parameters = parameters or {}
         if not self._is_connected():
@@ -866,10 +852,12 @@ neo4j_client = None
 
 def get_neo4j_client() -> Neo4jClient:
     """
-    Provide the module-wide Neo4jClient singleton for dependency injection.
+    Return a shared Neo4jClient singleton, creating and initializing it on first use.
+    
+    On first call this function instantiates the global Neo4jClient, attempts to establish a driver connection and create database constraints, and falls back to the in-memory store if connection or constraint setup fails (exceptions are swallowed). Subsequent calls return the same client instance.
     
     Returns:
-        neo4j_client (Neo4jClient): The shared Neo4jClient instance. If a real Neo4j connection could not be established during initialization, the returned client remains usable in fallback (in-memory) mode.
+        Neo4jClient: The global Neo4jClient instance (may be operating in fallback/in-memory mode if a live Neo4j connection could not be established).
     """
     global neo4j_client
     if neo4j_client is None:
